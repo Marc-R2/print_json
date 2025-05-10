@@ -111,18 +111,26 @@
             font-size: 0.95em; margin-bottom: 3px; word-wrap: break-word;
         }
         .item-detail-line .detail-label { color: var(--muted); font-weight: 500; margin-right: 4px; }
-        .item-detail-notes .notes-content-display {
+        .item-detail-line.item-uri .data-value { word-break: break-all; }
+        .item-detail-notes { margin-top: 4px; }
+        .item-detail-notes .detail-label {
+            color: var(--muted); font-weight: 500;
+            display: block; margin-bottom: 2px; font-size: 0.95em;
+        }
+        .notes-content-display {
             background: var(--bg); padding: 5px; border-radius: 3px;
             max-height: 100px; overflow-y: auto; white-space: pre-wrap;
+            word-wrap: break-word; font-size: 0.9em;
         }
         .qr-code-container {
             flex-shrink: 0; width: 120px; height: 120px;
             border: 1px solid var(--border); display: flex;
             align-items: center; justify-content: center;
-            transition: width 0.2s, height 0.2s;
+            transition: width 0.2s, height 0.2s; overflow: hidden;
         }
         .qr-code-container img, .qr-code-container canvas {
-            width: 100% !important; height: 100% !important; object-fit: contain;
+            width: 100% !important; height: 100% !important;
+            object-fit: contain; display: block !important;
         }
         .item-separator {
             height: 1px; background: var(--border); border: none;
@@ -131,36 +139,77 @@
 
         @media print {
             body {
-                background: var(--print-bg) !important;
-                color: var(--print-fg) !important;
-                padding: 8mm; font-size: 8pt;
+                margin: 0 !important;
+                padding: 8mm !important;
+                font-size: 8pt !important;
+                background-color: #fff !important;
+                color: #000 !important;
             }
-            .controls-container, .options-box, .error-message, button,
-            #progressContainer, h1 { display: none !important; }
+            .page-title-header, .controls-container, .options-box, .error-message,
+            button, title, noscript, #progressContainer, h1 {
+                display: none !important;
+            }
             #itemsContainer {
-                border: none; border-radius: 0; padding: 0;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                background-color: transparent !important;
             }
-            .item-entry { padding: 6px 0; }
-            .item-detail-name { color: var(--print-fg) !important; margin-bottom: 2px; }
-            .item-byte-info { font-size: 0.75em; color: var(--print-fg) !important; }
-            .item-detail-line { margin-bottom: 2px; }
-            .item-detail-line .detail-label { color: var(--print-fg) !important; }
-            .item-detail-line .data-value { color: var(--print-fg) !important; }
+            .item-entry {
+                padding: 6px 0 !important;
+                align-items: flex-start !important;
+            }
+            .item-name-line {
+                flex-wrap: wrap !important; /* Allow byte info to wrap below name if constrained */
+            }
+            .item-detail-name {
+                font-size: 1.05em !important;
+                color: #000 !important;
+                margin-bottom: 2px !important;
+            }
+            .item-byte-info {
+                font-size: 0.75em !important;
+                color: #333 !important;
+            }
+            .item-detail-line { font-size: 0.95em !important; margin-bottom: 2px !important; }
+            .item-detail-line .detail-label { color: #333 !important; }
+            .item-detail-line .data-value { color: #000 !important; }
+
+            .item-detail-notes .detail-label { color: #000 !important; font-size: 0.95em !important;}
             .notes-content-display {
-                background: #f0f0f0; border: 1px solid #ccc;
-                max-height: none; overflow: visible; padding: 3px;
+                background-color: #f0f0f0 !important;
+                color: #000 !important;
+                font-size: 0.9em !important;
+                max-height: none !important;
+                overflow-y: visible !important;
+                border: 1px solid #ccc !important;
+                padding: 3px !important;
             }
-            .item-separator { background: #aaa !important; }
+
+            .qr-code-container {
+                border: 1px solid #ccc !important;
+            }
+            .qr-code-container img,
+            .qr-code-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: contain !important;
+            }
+            .item-separator {
+                background-color: #aaa !important;
+            }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 </head>
 <body>
-<h1>JSON Item Kompakt-Liste (Layout Fix)</h1>
+<h1 class="page-title-header">JSON Item Kompakt-Liste (Layout Fix)</h1>
 
 <div class="controls-container">
+    <label for="jsonInput">JSON-Daten einfügen:</label>
     <textarea id="jsonInput" placeholder="JSON hier einfügen..."></textarea>
+    <label for="fileInput">Oder JSON-Datei auswählen:</label>
     <input type="file" id="fileInput" accept=".json,.txt">
     <button id="processJsonBtn">JSON verarbeiten</button>
 </div>
@@ -198,237 +247,451 @@
     const COMPRESSION_PREFIX = "z64:";
     let originalItems = [], processedItems = [];
 
-    const el = id => document.getElementById(id);
-
-    // Event bindings
-    el('compressionThresholdSlider').addEventListener('input', e => {
-        el('compressionThresholdValue').textContent = e.target.value;
+    // Initialize UI controls
+    document.addEventListener('DOMContentLoaded', () => {
+        const slider = document.getElementById('compressionThresholdSlider');
+        slider.oninput = () => document.getElementById('compressionThresholdValue').textContent = slider.value;
+        document.getElementById('processJsonBtn').addEventListener('click', processJson);
+        document.getElementById('regenerateQrButton').addEventListener('click', regenerateAllQrCodes);
     });
-    el('processJsonBtn').addEventListener('click', processJson);
-    el('regenerateQrButton').addEventListener('click', regenerateAllQrCodes);
 
     async function processJson() {
         resetUI();
-        const file = el('fileInput').files[0];
-        const content = file
-            ? await readFile(file)
-            : el('jsonInput').value.trim();
-        if (!content) return showError('Bitte JSON-Daten einfügen oder eine Datei auswählen.');
+        const fileInput = document.getElementById('fileInput');
+        const jsonInput = document.getElementById('jsonInput');
+        const errorMsg = document.getElementById('errorMessage');
+
+        let jsonDataString = "";
+        if (fileInput.files.length > 0) {
+            try {
+                const file = fileInput.files[0];
+                jsonDataString = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = () => reject('Fehler beim Lesen der Datei.');
+                    reader.readAsText(file);
+                });
+                fileInput.value = '';
+            } catch (err) {
+                showError(err.message || 'Fehler beim Lesen der Datei.');
+                return;
+            }
+        } else if (jsonInput.value.trim()) {
+            jsonDataString = jsonInput.value;
+        } else {
+            showError('Bitte JSON-Daten einfügen oder eine Datei auswählen.');
+            return;
+        }
+
         try {
-            const data = JSON.parse(content);
-            await renderItems(data);
-        } catch (e) {
-            showError('Fehler beim Parsen des JSON: ' + e.message);
+            const jsonData = JSON.parse(jsonDataString);
+            await renderItems(jsonData);
+        } catch (error) {
+            showError('Fehler beim Parsen des JSON: ' + error.message);
         }
     }
 
-    function readFile(file) {
-        return new Promise((res, rej) => {
-            const reader = new FileReader();
-            reader.onload = () => res(reader.result);
-            reader.onerror = () => rej('Fehler beim Lesen der Datei.');
-            reader.readAsText(file);
-        });
-    }
-
-    function showError(msg) {
-        const err = el('errorMessage');
-        err.textContent = msg;
-        err.style.display = 'block';
-        el('progressContainer').style.display = 'none';
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+        document.getElementById('progressContainer').style.display = 'none';
     }
 
     function resetUI() {
-        el('errorMessage').style.display = 'none';
-        el('itemsContainer').innerHTML = '';
-        processedItems = [];
+        document.getElementById('errorMessage').textContent = '';
+        document.getElementById('errorMessage').style.display = 'none';
+        document.getElementById('itemsContainer').innerHTML = '';
         originalItems = [];
+        processedItems = [];
     }
 
-    function updateProgress(cur, tot, action = 'Verarbeite') {
-        el('progressContainer').style.display = 'block';
-        el('progressAction').textContent = action;
-        el('progressText').textContent = cur;
-        el('progressTotal').textContent = tot;
-        const pct = tot ? Math.round((cur / tot) * 100) : 0;
-        const bar = el('progressBarInner');
-        bar.style.width = pct + '%';
-        bar.textContent = pct + '%';
+    function updateProgress(current, total, action = "Verarbeite") {
+        const container = document.getElementById('progressContainer');
+        const textEl = document.getElementById('progressText');
+        const totalEl = document.getElementById('progressTotal');
+        const barEl = document.getElementById('progressBarInner');
+        const actionEl = document.getElementById('progressAction');
+
+        container.style.display = 'block';
+        actionEl.textContent = action;
+        textEl.textContent = current;
+        totalEl.textContent = total;
+
+        const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+        barEl.style.width = percentage + '%';
+        barEl.textContent = percentage + '%';
     }
 
     function getByteLength(str) {
         return new TextEncoder().encode(str).length;
     }
 
-    function uint8ToBase64(buf) {
-        let bin = '';
-        new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
-        return btoa(bin);
+    function uint8ArrayToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
     }
 
-    function prepareQrData(obj, threshold) {
-        const s = JSON.stringify(obj), len = getByteLength(s);
-        let data = s, compLen = null, compressed = false;
-        if (len > threshold && window.pako) {
-            const def = pako.deflate(s);
-            if (def.length < len * 0.9) {
-                data = COMPRESSION_PREFIX + uint8ToBase64(def);
-                compLen = def.length;
-                compressed = true;
+    function prepareQrData(itemData, threshold) {
+        const originalJsonString = JSON.stringify(itemData);
+        const originalJsonBytes = getByteLength(originalJsonString);
+        let qrDataString = originalJsonString;
+        let compressedRawBytes = null;
+        let wasCompressed = false;
+
+        if (originalJsonBytes > threshold && typeof pako !== 'undefined') {
+            try {
+                const compressedData = pako.deflate(originalJsonString);
+                compressedRawBytes = compressedData.length;
+                if (compressedRawBytes < originalJsonBytes * 0.9) {
+                    qrDataString = COMPRESSION_PREFIX + uint8ArrayToBase64(compressedData);
+                    wasCompressed = true;
+                } else {
+                    compressedRawBytes = null;
+                }
+            } catch (e) {
+                console.error("Error during compression:", e);
+                compressedRawBytes = null;
             }
         }
-        return { data, len, compLen, compressed };
+
+        return { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed };
     }
 
-    function genQr(elm, text) {
-        elm.innerHTML = '';
-        if (!window.QRCode) {
-            elm.textContent = '[QR Lib fehlt]'; return;
+    function getQrDisplaySize(qrDataLength) {
+        const sizeSetting = document.getElementById('qrSizeSelector').value;
+        if (sizeSetting === 'auto') {
+            if (qrDataLength < 500) return 90;
+            if (qrDataLength < 1500) return 120;
+            return 150;
         }
-        new QRCode(elm, {
-            text, width: 512, height: 512,
-            colorDark:"#000", colorLight:"#fff",
-            correctLevel: QRCode.CorrectLevel.L
-        });
-        const img = elm.querySelector('img, canvas');
-        if (img) {
-            img.style.width = '100%';
-            img.style.height = '100%';
-        }
+        return parseInt(sizeSetting, 10) || 120;
     }
 
-    function shortenUri(uri, max = 50) {
-        let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max ? u.slice(0, max-3) + '...' : u;
-    }
+    function generateSingleQrCode(container, dataString) {
+        container.innerHTML = '';
 
-    async function renderItems(json) {
-        const items = json.items;
-        if (!Array.isArray(items)) return showError('Kein gültiges "items"-Array.');
-        if (!items.length) return el('itemsContainer').textContent = 'Keine Items im JSON gefunden.';
+        try {
+            if (typeof QRCode === 'undefined') {
+                container.textContent = '[QR Lib fehlt]';
+                return;
+            }
 
-        const threshold = +el('compressionThresholdSlider').value;
-        const auto = el('qrSizeSelector').value === 'auto';
-
-        // determine global auto size
-        let autoSize = null;
-        if (auto) {
-            let maxLen = 0;
-            items.forEach(it => {
-                const copy = JSON.parse(JSON.stringify(it));
-                if (copy.login?.uris) {
-                    copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
-                }
-                const { data } = prepareQrData(copy, threshold);
-                if (data.length > maxLen) maxLen = data.length;
+            new QRCode(container, {
+                text: dataString,
+                width: 512,
+                height: 512,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.L
             });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
+
+            // Ensure only one child and proper styling
+            if (container.children.length > 1) {
+                while (container.children.length > 1) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+
+            if (container.firstChild) {
+                container.firstChild.style.width = '100%';
+                container.firstChild.style.height = '100%';
+            }
+        } catch (e) {
+            console.error("Error creating QR code:", e);
+            container.textContent = "[QR Fehler]";
+            container.style.fontSize = "0.8em";
+            container.style.color = "red";
+            container.style.textAlign = "center";
+        }
+    }
+
+    function shortenUri(originalUri, maxLength = 50) {
+        if (!originalUri) return originalUri;
+        let uri = String(originalUri).replace(/^https?:\/\/(www\.)?/i, '');
+        if (uri.length > maxLength) {
+            uri = uri.substring(0, maxLength - 3) + '...';
+        }
+        return uri;
+    }
+
+    function createTextDetail(parent, label, value, options = {}) {
+        if (!value || String(value).trim() === '') return null;
+
+        const p = document.createElement('p');
+        p.className = 'item-detail-line';
+        if (options.className) p.classList.add(options.className);
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'detail-label';
+        labelSpan.textContent = label + ':';
+
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'data-value';
+        valueSpan.textContent = value;
+
+        p.appendChild(labelSpan);
+        p.appendChild(document.createTextNode(' '));
+        p.appendChild(valueSpan);
+        parent.appendChild(p);
+
+        return p;
+    }
+
+    async function renderItems(jsonData) {
+        const itemsContainer = document.getElementById('itemsContainer');
+        const compressionThreshold = parseInt(document.getElementById('compressionThresholdSlider').value, 10);
+
+        if (!jsonData || typeof jsonData !== 'object') {
+            showError('Ungültige JSON-Struktur.');
+            return;
+        }
+
+        const items = jsonData.items;
+        if (!Array.isArray(items)) {
+            showError('Kein gültiges "items"-Array.');
+            return;
+        }
+
+        if (items.length === 0) {
+            itemsContainer.textContent = 'Keine Items im JSON gefunden.';
+            return;
+        }
+
+        document.getElementById('progressContainer').style.display = 'block';
+        updateProgress(0, items.length);
+
+        // Calculate global auto size if needed
+        let globalAutoSize = null;
+        if (document.getElementById('qrSizeSelector').value === 'auto') {
+            let maxQrDataLength = 0;
+
+            for (const item of items) {
+                if (typeof item !== 'object' || item === null) continue;
+
+                const itemForQr = JSON.parse(JSON.stringify(item));
+                const loginData = itemForQr.login || {};
+
+                if (loginData.uris && Array.isArray(loginData.uris)) {
+                    loginData.uris = loginData.uris.map(uriObj =>
+                        (uriObj && uriObj.uri) ? {...uriObj, uri: shortenUri(uriObj.uri)} : uriObj
+                    );
+                }
+
+                const { qrDataString } = prepareQrData(itemForQr, compressionThreshold);
+                maxQrDataLength = Math.max(maxQrDataLength, qrDataString.length);
+            }
+
+            if (maxQrDataLength < 500) globalAutoSize = 90;
+            else if (maxQrDataLength < 1500) globalAutoSize = 120;
+            else globalAutoSize = 150;
         }
 
         for (let i = 0; i < items.length; i++) {
-            updateProgress(i, items.length);
-            const itm = items[i];
-            if (!itm || typeof itm !== 'object') continue;
-            originalItems.push(itm);
-            const copy = JSON.parse(JSON.stringify(itm));
-            if (copy.login?.uris) {
-                copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
+            const originalItem = items[i];
+            if (typeof originalItem !== 'object' || originalItem === null) {
+                updateProgress(i + 1, items.length);
+                await new Promise(resolve => setTimeout(resolve, 0));
+                continue;
             }
-            processedItems.push(copy);
 
-            const { data, len, compLen, compressed } = prepareQrData(copy, threshold);
-            const entry = document.createElement('div');
-            entry.className = 'item-entry';
-            entry.dataset.index = i;
+            originalItems.push(originalItem);
 
-            // text details
-            const txt = document.createElement('div');
-            txt.className = 'item-text-details';
-            const nameLine = document.createElement('div');
-            nameLine.className = 'item-name-line';
-            if (itm.name) {
-                const h4 = document.createElement('h4');
-                h4.className = 'item-detail-name';
-                h4.textContent = itm.name;
-                nameLine.append(h4);
+            // Create a copy for QR code with shortened URIs
+            const itemForQr = JSON.parse(JSON.stringify(originalItem));
+            const loginDataForQr = itemForQr.login || {};
+
+            if (loginDataForQr.uris && Array.isArray(loginDataForQr.uris)) {
+                loginDataForQr.uris = loginDataForQr.uris.map(uriObj =>
+                    (uriObj && uriObj.uri) ? {...uriObj, uri: shortenUri(uriObj.uri)} : uriObj
+                );
             }
-            const info = document.createElement('span');
-            info.className = 'item-byte-info';
-            info.textContent = `(JSON: ${len} B${compressed ? `, Kompr.: ${compLen} B` : ''})`;
-            nameLine.append(info);
-            txt.append(nameLine);
 
-            const addDetail = (lbl, val, cls) => {
-                if (!val) return;
-                const p = document.createElement('p');
-                p.className = 'item-detail-line' + (cls ? ` ${cls}`:'');
-                p.innerHTML = `<span class="detail-label">${lbl}:</span><span class="data-value">${val}</span>`;
-                txt.append(p);
-            };
-            const lg = itm.login || {};
-            addDetail('User', lg.username);
-            addDetail('Pass', lg.password);
-            addDetail('TOTP', lg.totp);
-            if (Array.isArray(lg.uris) && lg.uris[0]?.uri) {
-                addDetail('URI', shortenUri(lg.uris[0].uri), 'item-uri');
-            }
-            if (itm.notes) {
-                const notes = document.createElement('div');
-                notes.className = 'item-detail-notes';
-                notes.innerHTML = `<span class="detail-label">Notizen:</span><div class="notes-content-display">${itm.notes}</div>`;
-                txt.append(notes);
-            }
-            entry.append(txt);
+            processedItems.push(itemForQr);
 
-            // QR
-            const qrC = document.createElement('div');
-            qrC.className = 'qr-code-container';
-            const size = autoSize ?? +el('qrSizeSelector').value;
-            qrC.style.width = qrC.style.height = size + 'px';
-            entry.append(qrC);
-            genQr(qrC, data);
+            // Prepare QR data
+            const { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed } =
+                prepareQrData(itemForQr, compressionThreshold);
 
-            el('itemsContainer').append(entry);
-            if (i < items.length - 1) {
-                const hr = document.createElement('hr');
-                hr.className = 'item-separator';
-                el('itemsContainer').append(hr);
+            // Create item entry
+            const itemEntryDiv = document.createElement('div');
+            itemEntryDiv.className = 'item-entry';
+            itemEntryDiv.dataset.itemIndex = i;
+
+            // Text details section
+            const textDetailsDiv = document.createElement('div');
+            textDetailsDiv.className = 'item-text-details';
+
+            // Name line with byte info
+            const nameLineDiv = document.createElement('div');
+            nameLineDiv.className = 'item-name-line';
+
+            const loginData = originalItem.login || {};
+            let hasContent = false;
+
+            if (originalItem.name) {
+                const nameEl = document.createElement('h4');
+                nameEl.className = 'item-detail-name';
+                nameEl.textContent = originalItem.name;
+                nameLineDiv.appendChild(nameEl);
+                hasContent = true;
             }
-            await new Promise(r => setTimeout(r, 0));
+
+            const byteInfoSpan = document.createElement('span');
+            byteInfoSpan.className = 'item-byte-info';
+            let byteInfoText = `(JSON: ${originalJsonBytes} B`;
+
+            if (wasCompressed && compressedRawBytes !== null) {
+                byteInfoText += `, Kompr.: ${compressedRawBytes} B`;
+            }
+
+            byteInfoText += ')';
+            byteInfoSpan.textContent = byteInfoText;
+            nameLineDiv.appendChild(byteInfoSpan);
+            textDetailsDiv.appendChild(nameLineDiv);
+
+            // Add login details
+            if (createTextDetail(textDetailsDiv, 'User', loginData.username)) hasContent = true;
+            if (createTextDetail(textDetailsDiv, 'Pass', loginData.password)) hasContent = true;
+            if (createTextDetail(textDetailsDiv, 'TOTP', loginData.totp)) hasContent = true;
+
+            // Add URI if available
+            if (Array.isArray(loginData.uris) && loginData.uris.length > 0) {
+                const firstUriObj = loginData.uris[0];
+                if (firstUriObj && firstUriObj.uri) {
+                    const shortUri = shortenUri(firstUriObj.uri);
+                    if (createTextDetail(textDetailsDiv, 'URI', shortUri, {className: 'item-uri'})) {
+                        hasContent = true;
+                    }
+                }
+            }
+
+            // Add notes if available
+            if (originalItem.notes) {
+                const notesContainer = document.createElement('div');
+                notesContainer.className = 'item-detail-notes';
+
+                const notesLabel = document.createElement('span');
+                notesLabel.className = 'detail-label';
+                notesLabel.textContent = 'Notizen:';
+
+                const notesContent = document.createElement('div');
+                notesContent.className = 'notes-content-display';
+                notesContent.textContent = originalItem.notes;
+
+                notesContainer.appendChild(notesLabel);
+                notesContainer.appendChild(notesContent);
+                textDetailsDiv.appendChild(notesContainer);
+                hasContent = true;
+            }
+
+            itemEntryDiv.appendChild(textDetailsDiv);
+
+            // QR code section
+            const qrContainer = document.createElement('div');
+            qrContainer.className = 'qr-code-container';
+
+            const displaySize = globalAutoSize !== null ? globalAutoSize : getQrDisplaySize(qrDataString.length);
+            qrContainer.style.width = displaySize + 'px';
+            qrContainer.style.height = displaySize + 'px';
+
+            generateSingleQrCode(qrContainer, qrDataString);
+            itemEntryDiv.appendChild(qrContainer);
+
+            // Add to container if it has content
+            if (hasContent || originalItem.name) {
+                itemsContainer.appendChild(itemEntryDiv);
+
+                if (i < items.length - 1) {
+                    const separator = document.createElement('hr');
+                    separator.className = 'item-separator';
+                    itemsContainer.appendChild(separator);
+                }
+            }
+
+            updateProgress(i + 1, items.length);
+            await new Promise(resolve => setTimeout(resolve, 0));
         }
-        updateProgress(items.length, items.length);
-        el('progressBarInner').textContent = 'Fertig!';
+
+        if (itemsContainer.childElementCount === 0 && items.length > 0) {
+            itemsContainer.textContent = 'Keine anzeigbaren Textdaten in den Items gefunden.';
+        }
+
+        const progressBar = document.getElementById('progressBarInner');
+        if (items.length > 0) {
+            progressBar.textContent = 'Fertig!';
+        } else {
+            document.getElementById('progressContainer').style.display = 'none';
+        }
     }
 
     async function regenerateAllQrCodes() {
-        if (!processedItems.length) return alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
-        const threshold = +el('compressionThresholdSlider').value;
-        const auto = el('qrSizeSelector').value === 'auto';
-        let autoSize = null;
-        if (auto) {
-            let maxLen = 0;
-            processedItems.forEach(it => {
-                const { data } = prepareQrData(it, threshold);
-                if (data.length > maxLen) maxLen = data.length;
-            });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
+        if (processedItems.length === 0) {
+            alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
+            return;
         }
-        const entries = document.querySelectorAll('.item-entry');
-        for (let i = 0; i < entries.length; i++) {
-            updateProgress(i, entries.length, 'Aktualisiere QR');
-            const idx = +entries[i].dataset.index;
-            const it = processedItems[idx];
-            const { data, len, compLen, compressed } = prepareQrData(it, threshold);
-            const qrC = entries[i].querySelector('.qr-code-container');
-            const info = entries[i].querySelector('.item-byte-info');
-            const size = autoSize ?? +el('qrSizeSelector').value;
-            qrC.style.width = qrC.style.height = size + 'px';
-            genQr(qrC, data);
-            info.textContent = `(JSON: ${len} B${compressed ? `, Kompr.: ${compLen} B` : ''})`;
-            await new Promise(r => setTimeout(r, 0));
+
+        const progressContainer = document.getElementById('progressContainer');
+        progressContainer.style.display = 'block';
+        updateProgress(0, processedItems.length, "Aktualisiere QR");
+
+        const compressionThreshold = parseInt(document.getElementById('compressionThresholdSlider').value, 10);
+
+        // Calculate global auto size if needed
+        let globalAutoSize = null;
+        if (document.getElementById('qrSizeSelector').value === 'auto') {
+            let maxQrDataLength = 0;
+
+            for (const itemData of processedItems) {
+                const { qrDataString } = prepareQrData(itemData, compressionThreshold);
+                maxQrDataLength = Math.max(maxQrDataLength, qrDataString.length);
+            }
+
+            if (maxQrDataLength < 500) globalAutoSize = 90;
+            else if (maxQrDataLength < 1500) globalAutoSize = 120;
+            else globalAutoSize = 150;
         }
-        updateProgress(entries.length, entries.length, 'QR Fertig');
-        el('progressBarInner').textContent = 'QR Fertig!';
+
+        const itemEntries = document.querySelectorAll('.item-entry');
+
+        for (let i = 0; i < itemEntries.length; i++) {
+            const itemEntry = itemEntries[i];
+            const itemIndex = parseInt(itemEntry.dataset.itemIndex, 10);
+            const itemData = processedItems[itemIndex];
+
+            const qrContainer = itemEntry.querySelector('.qr-code-container');
+            const byteInfo = itemEntry.querySelector('.item-byte-info');
+
+            if (qrContainer && itemData) {
+                const { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed } =
+                    prepareQrData(itemData, compressionThreshold);
+
+                const displaySize = globalAutoSize !== null ? globalAutoSize : getQrDisplaySize(qrDataString.length);
+                qrContainer.style.width = displaySize + 'px';
+                qrContainer.style.height = displaySize + 'px';
+
+                generateSingleQrCode(qrContainer, qrDataString);
+
+                // Update byte info
+                if (byteInfo) {
+                    let byteInfoText = `(JSON: ${originalJsonBytes} B`;
+                    if (wasCompressed && compressedRawBytes !== null) {
+                        byteInfoText += `, Kompr.: ${compressedRawBytes} B`;
+                    }
+                    byteInfoText += ')';
+                    byteInfo.textContent = byteInfoText;
+                }
+            }
+
+            updateProgress(i + 1, itemEntries.length, "Aktualisiere QR");
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        document.getElementById('progressBarInner').textContent = 'QR Fertig!';
     }
 </script>
 </body>
