@@ -14,9 +14,6 @@
             --error-fg: #d73a49;
             --success: #28a745;
             --success-dark: #218838;
-            --qr-bg: #fff;
-            --print-bg: #fff;
-            --print-fg: #000;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -115,6 +112,7 @@
             background: var(--bg); padding: 5px; border-radius: 3px;
             max-height: 100px; overflow-y: auto; white-space: pre-wrap;
         }
+
         .qr-code-container {
             flex-shrink: 0; width: 120px; height: 120px;
             border: 1px solid var(--border); display: flex;
@@ -131,26 +129,70 @@
 
         @media print {
             body {
-                background: var(--print-bg) !important;
-                color: var(--print-fg) !important;
-                padding: 8mm; font-size: 8pt;
+                background: #fff !important;
+                color: #000 !important;
+                padding: 8mm;
+                font-size: 8pt;
             }
-            .controls-container, .options-box, .error-message, button,
-            #progressContainer, h1 { display: none !important; }
+            /* hide UI chrome */
+            h1, .controls-container, .options-box, .error-message,
+            button, #progressContainer, noscript, title {
+                display: none !important;
+            }
             #itemsContainer {
-                border: none; border-radius: 0; padding: 0;
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
             }
-            .item-entry { padding: 6px 0; }
-            .item-detail-name { color: var(--print-fg) !important; margin-bottom: 2px; }
-            .item-byte-info { font-size: 0.75em; color: var(--print-fg) !important; }
-            .item-detail-line { margin-bottom: 2px; }
-            .item-detail-line .detail-label { color: var(--print-fg) !important; }
-            .item-detail-line .data-value { color: var(--print-fg) !important; }
+            .item-entry {
+                padding: 6px 0 !important;
+                align-items: flex-start !important;
+            }
+            .item-name-line {
+                flex-wrap: wrap !important;
+            }
+            .item-detail-name {
+                font-size: 1.05em !important;
+                color: #000 !important;
+                margin-bottom: 2px !important;
+            }
+            .item-byte-info {
+                font-size: 0.75em !important;
+                color: #000 !important;
+            }
+            .item-detail-line {
+                font-size: 0.95em !important;
+                margin-bottom: 2px !important;
+            }
+            .item-detail-line .detail-label {
+                color: #333 !important;
+            }
+            .item-detail-line .data-value {
+                color: #000 !important;
+            }
+            .item-detail-notes .detail-label {
+                color: #000 !important;
+                font-size: 0.95em !important;
+            }
             .notes-content-display {
-                background: #f0f0f0; border: 1px solid #ccc;
-                max-height: none; overflow: visible; padding: 3px;
+                background: #f0f0f0 !important;
+                color: #000 !important;
+                font-size: 0.9em !important;
+                max-height: none !important;
+                overflow-y: visible !important;
+                border: 1px solid #ccc !important;
+                padding: 3px !important;
             }
-            .item-separator { background: #aaa !important; }
+            .qr-code-container {
+                border: 1px solid #ccc !important;
+            }
+            .qr-code-container img, .qr-code-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+            .item-separator {
+                background-color: #aaa !important;
+            }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
@@ -158,13 +200,11 @@
 </head>
 <body>
 <h1>JSON Item Kompakt-Liste (Layout Fix)</h1>
-
 <div class="controls-container">
     <textarea id="jsonInput" placeholder="JSON hier einfügen..."></textarea>
     <input type="file" id="fileInput" accept=".json,.txt">
     <button id="processJsonBtn">JSON verarbeiten</button>
 </div>
-
 <div class="options-box">
     <h3>QR-Code Optionen</h3>
     <div class="option-group">
@@ -185,22 +225,18 @@
         <button id="regenerateQrButton">QR-Codes aktualisieren</button>
     </div>
 </div>
-
 <div id="progressContainer" style="display:none">
     <p><span id="progressAction">Verarbeite</span>: <span id="progressText">0</span>/<span id="progressTotal">0</span></p>
     <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
 </div>
-
 <div id="errorMessage" class="error-message"></div>
 <div id="itemsContainer"></div>
 
 <script>
     const COMPRESSION_PREFIX = "z64:";
     let originalItems = [], processedItems = [];
-
     const el = id => document.getElementById(id);
 
-    // Event bindings
     el('compressionThresholdSlider').addEventListener('input', e => {
         el('compressionThresholdValue').textContent = e.target.value;
     });
@@ -232,9 +268,8 @@
     }
 
     function showError(msg) {
-        const err = el('errorMessage');
-        err.textContent = msg;
-        err.style.display = 'block';
+        el('errorMessage').textContent = msg;
+        el('errorMessage').style.display = 'block';
         el('progressContainer').style.display = 'none';
     }
 
@@ -283,11 +318,12 @@
     function genQr(elm, text) {
         elm.innerHTML = '';
         if (!window.QRCode) {
-            elm.textContent = '[QR Lib fehlt]'; return;
+            elm.textContent = '[QR Lib fehlt]';
+            return;
         }
         new QRCode(elm, {
             text, width: 512, height: 512,
-            colorDark:"#000", colorLight:"#fff",
+            colorDark: "#000", colorLight: "#fff",
             correctLevel: QRCode.CorrectLevel.L
         });
         const img = elm.querySelector('img, canvas');
@@ -298,8 +334,8 @@
     }
 
     function shortenUri(uri, max = 50) {
-        let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max ? u.slice(0, max-3) + '...' : u;
+        let u = (uri || '').replace(/^https?:\/\/(www\.)?/, '');
+        return u.length > max ? u.slice(0, max - 3) + '...' : u;
     }
 
     async function renderItems(json) {
@@ -310,7 +346,6 @@
         const threshold = +el('compressionThresholdSlider').value;
         const auto = el('qrSizeSelector').value === 'auto';
 
-        // determine global auto size
         let autoSize = null;
         if (auto) {
             let maxLen = 0;
@@ -341,9 +376,9 @@
             entry.className = 'item-entry';
             entry.dataset.index = i;
 
-            // text details
             const txt = document.createElement('div');
             txt.className = 'item-text-details';
+
             const nameLine = document.createElement('div');
             nameLine.className = 'item-name-line';
             if (itm.name) {
@@ -361,7 +396,7 @@
             const addDetail = (lbl, val, cls) => {
                 if (!val) return;
                 const p = document.createElement('p');
-                p.className = 'item-detail-line' + (cls ? ` ${cls}`:'');
+                p.className = 'item-detail-line' + (cls ? ` ${cls}` : '');
                 p.innerHTML = `<span class="detail-label">${lbl}:</span><span class="data-value">${val}</span>`;
                 txt.append(p);
             };
@@ -380,7 +415,6 @@
             }
             entry.append(txt);
 
-            // QR
             const qrC = document.createElement('div');
             qrC.className = 'qr-code-container';
             const size = autoSize ?? +el('qrSizeSelector').value;
