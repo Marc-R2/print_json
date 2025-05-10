@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>JSON Item Kompakt-Liste (Layout Fix)</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            padding: 15px; 
+            background-color: #f6f8fa; 
+            color: #24292e; 
+            font-size: 13px;
+        }
+        .page-title-header { 
+            color: #0366d6; 
+            text-align: center; 
+            margin-bottom: 15px; 
+            font-size: 1.4em; 
+            font-weight: 600;
+        }
+        .controls-container, .options-box { 
+            background-color: #fff; 
+            padding: 12px; 
+            border-radius: 6px; 
+            border: 1px solid #e1e4e8;
+            margin-bottom: 15px;
+        }
+        .options-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #586069;
+        }
+        .option-group {
+            margin-bottom: 10px;
+        }
+        .option-group label {
+            margin-right: 8px;
+            font-weight: 500;
+            color: #586069;
+            min-width: 120px; 
+            display: inline-block;
+        }
+        .option-group select, .option-group input[type="range"], .option-group button {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #d1d5da;
+            font-size: 0.9em;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+         .option-group input[type="range"] {
+            padding: 0; 
+            max-width: 150px;
+         }
+        .option-group output {
+            font-size: 0.9em;
+            color: #24292e;
+        }
+        .options-box button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .options-box button:hover {
+            background-color: #0056b3;
+        }
+
+        textarea { 
+            width: 100%; 
+            min-height: 70px; 
+            margin-bottom: 8px; 
+            border: 1px solid #d1d5da; 
+            border-radius: 4px; 
+            padding: 8px; 
+            box-sizing: border-box; 
+            font-size: 0.95em;
+        }
+        input[type="file"] { margin-bottom: 8px; display: block; font-size: 0.95em;}
+        button#processJsonBtn { 
+            background-color: #28a745; 
+            color: white; 
+            padding: 7px 12px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.95em;
+            transition: background-color 0.2s ease;
+        }
+        button#processJsonBtn:hover { background-color: #218838; }
+        .error-message { 
+            color: #d73a49; 
+            background-color: #fddfdf; 
+            border: 1px solid #d73a49; 
+            padding: 8px; 
+            margin-bottom: 12px; 
+            border-radius: 4px; 
+            font-size: 0.9em;
+        }
+        
+        #itemsContainer {
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 5px 10px;
+        }
+
+        .item-entry {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+        }
+
+        .item-text-details {
+            flex-grow: 1;
+            padding-right: 15px; 
+            min-width: 0; /* Important for flex-grow to work correctly with shrinking content */
+        }
+        
+        .item-name-line {
+            display: flex;
+            align-items: baseline; /* Aligns text baselines of name and byte info */
+            margin-bottom: 5px;
+            flex-wrap: nowrap; /* Prevent wrapping of name and byte info onto separate lines if possible */
+        }
+        .item-detail-name { /* The h4 element for the name */
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #0366d6;
+            margin: 0; 
+            margin-right: 8px; 
+            flex-grow: 1; /* Allow name to take available space */
+            flex-shrink: 1; /* Allow name to shrink if needed */
+            min-width: 0;   /* Critical for text content to shrink in flex */
+            word-break: break-word; /* Allow long names to wrap */
+        }
+        .item-byte-info {
+            font-size: 0.8em;
+            color: #6a737d;
+            white-space: nowrap; /* Keep byte info on one line */
+            flex-shrink: 0; /* Prevent byte info from shrinking */
+        }
+
+
+        .item-detail-line {
+            margin: 0 0 3px 0;
+            font-size: 0.95em;
+            word-wrap: break-word;
+        }
+        .item-detail-line .detail-label {
+            font-weight: 500;
+            color: #586069;
+            margin-right: 4px;
+        }
+        .item-detail-line.item-uri .data-value {
+             word-break: break-all;
+        }
+
+        .item-detail-notes {
+            margin-top: 4px;
+        }
+        .item-detail-notes .detail-label {
+            font-weight: 500;
+            color: #586069;
+            display: block;
+            margin-bottom: 2px;
+            font-size: 0.95em;
+        }
+        .notes-content-display {
+            font-size: 0.9em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f6f8fa;
+            padding: 5px;
+            border-radius: 3px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .qr-code-container {
+            flex-shrink: 0;
+            width: 120px; 
+            height: 120px;
+            border: 1px solid #e1e4e8;
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: width 0.2s ease-out, height 0.2s ease-out; 
+        }
+        .qr-code-container img, 
+        .qr-code-container canvas {
+            display: block !important; 
+            width: 100% !important; 
+            height: 100% !important;
+            object-fit: contain; 
+        }
+
+        .item-separator {
+            border: 0;
+            height: 1px;
+            background-color: #e1e4e8;
+            margin: 0;
+        }
+        #itemsContainer > .item-separator:last-of-type {
+            display: none;
+        }
+
+        #progressContainer {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }
+        #progressContainer p {
+            margin: 0 0 5px 0;
+            font-size: 0.95em;
+            color: #586069;
+        }
+        #progressBarOuter {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            height: 20px;
+            overflow: hidden;
+        }
+        #progressBarInner {
+            width: 0%;
+            height: 100%;
+            background-color: #28a745;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-size: 0.85em;
+            font-weight: bold;
+            transition: width 0.2s ease-out;
+        }
+
+        @media print {
+            body { 
+                margin: 0; 
+                padding: 8mm; 
+                font-size: 8pt; 
+                background-color: #fff !important; 
+                color: #000 !important;
+            }
+            .page-title-header, .controls-container, .options-box, .error-message, button, title, noscript, #progressContainer { 
+                display: none !important; 
+            }
+            #itemsContainer {
+                border: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+            }
+            .item-entry {
+                padding: 6px 0 !important;
+                align-items: flex-start !important;
+            }
+            .item-name-line {
+                flex-wrap: wrap; /* Allow byte info to wrap below name in print if very constrained */
+            }
+            .item-detail-name { 
+                font-size: 1.05em !important; 
+                color: #000 !important; 
+                margin-bottom: 2px !important; /* Add a bit of space if byte-info wraps */
+            }
+            .item-byte-info {
+                font-size: 0.75em !important;
+            }
+            .item-detail-line { font-size: 0.95em !important; margin-bottom: 2px !important; }
+            .item-detail-line .detail-label { color: #333 !important; }
+            .item-detail-line .data-value { color: #000 !important; }
+            
+            .item-detail-notes .detail-label { color: #000 !important; font-size: 0.95em !important;}
+            .notes-content-display { 
+                background-color: #f0f0f0 !important; 
+                color: #000 !important;
+                font-size: 0.9em !important;
+                max-height: none !important;
+                overflow-y: visible !important;
+                border: 1px solid #ccc !important;
+                padding: 3px !important;
+            }
+
+            .qr-code-container {
+                border: 1px solid #ccc !important;
+            }
+             .qr-code-container img,
+             .qr-code-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+            .item-separator {
+                background-color: #aaa !important;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script> 
+</head>
+<body>
+    <h1 class="page-title-header">JSON Item Kompakt-Liste (Layout Fix)</h1>
+
+    <div class="controls-container">
+        <label for="jsonInput">JSON-Daten einfügen:</label>
+        <textarea id="jsonInput" placeholder="JSON hier einfügen..."></textarea>
+        <label for="fileInput">Oder JSON-Datei auswählen:</label>
+        <input type="file" id="fileInput" accept=".json,.txt">
+        <button id="processJsonBtn" onclick="processJson()">JSON verarbeiten</button>
+    </div>
+
+    <div class="options-box">
+        <h3>QR-Code Optionen</h3>
+        <div class="option-group">
+            <label for="qrSizeSelector">Größe (Anzeige):</label>
+            <select id="qrSizeSelector">
+                <option value="90">Klein (90px)</option>
+                <option value="120" selected>Mittel (120px)</option>
+                <option value="150">Groß (150px)</option>
+                <option value="auto">Auto</option>
+            </select>
+        </div>
+        <div class="option-group">
+            <label for="compressionThresholdSlider">Kompression ab:</label>
+            <input type="range" id="compressionThresholdSlider" min="256" max="2800" step="64" value="2800">
+            <output for="compressionThresholdSlider" id="compressionThresholdValue">2800</output> B
+        </div>
+        <div class="option-group">
+            <button id="regenerateQrButton" onclick="regenerateAllQrCodes()">QR-Codes aktualisieren</button>
+        </div>
+    </div>
+
+
+    <div id="progressContainer" style="display: none;">
+        <p>Verarbeite: <span id="progressText">0</span> / <span id="progressTotal">0</span></p>
+        <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
+    </div>
+
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    <div id="itemsContainer"></div>
+
+    <script>
+        let currentProcessedItems = []; 
+        let currentOriginalItems = []; 
+        const COMPRESSION_PREFIX = "z64:";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const slider = document.getElementById('compressionThresholdSlider');
+            const output = document.getElementById('compressionThresholdValue');
+            slider.oninput = function() {
+                output.textContent = this.value;
+            }
+        });
+
+        function processJson() { 
+            const fileInput = document.getElementById('fileInput');
+            const jsonInputArea = document.getElementById('jsonInput');
+            const errorMessageDiv = document.getElementById('errorMessage');
+            
+            errorMessageDiv.textContent = '';
+            errorMessageDiv.style.display = 'none';
+            document.getElementById('itemsContainer').innerHTML = ''; 
+            currentProcessedItems = []; 
+            currentOriginalItems = [];
+
+            const handleJsonData = async (jsonDataString) => {
+                try {
+                    const jsonData = JSON.parse(jsonDataString);
+                    await renderItems(jsonData); 
+                } catch (error) {
+                    errorMessageDiv.textContent = 'Fehler beim Parsen des JSON: ' + error.message;
+                    errorMessageDiv.style.display = 'block';
+                    document.getElementById('progressContainer').style.display = 'none'; 
+                }
+            };
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => handleJsonData(e.target.result);
+                reader.onerror = () => { 
+                    errorMessageDiv.textContent = 'Fehler beim Lesen der Datei.';
+                    errorMessageDiv.style.display = 'block';
+                };
+                reader.readAsText(file);
+                fileInput.value = ''; 
+            } else if (jsonInputArea.value.trim() !== '') {
+                handleJsonData(jsonInputArea.value);
+            } else {
+                errorMessageDiv.textContent = 'Bitte JSON-Daten einfügen oder eine Datei auswählen.';
+                errorMessageDiv.style.display = 'block';
+            }
+        }
+        
+        function createTextDetail(parent, label, value, options = {}) { 
+             if (value === null || value === undefined || String(value).trim() === '') {
+                return null;
+            }
+            const p = document.createElement('p');
+            p.className = 'item-detail-line';
+            if (options.className) p.classList.add(options.className);
+
+            let content = '';
+            if (label) {
+                 content += `<span class="detail-label">${label}:</span> `;
+            }
+            const tempSpan = document.createElement('span');
+            tempSpan.textContent = value;
+            content += `<span class="data-value">${tempSpan.innerHTML}</span>`;
+            
+            p.innerHTML = content;
+            parent.appendChild(p);
+            return p;
+        }
+
+        function shortenUri(originalUri, maxLength = 50) { 
+            if (!originalUri) return originalUri;
+            let uri = String(originalUri).replace(/^https?:\/\/(www\.)?/i, '');
+            if (uri.length > maxLength) {
+                uri = uri.substring(0, maxLength - 3) + '...';
+            }
+            return uri;
+        }
+        
+        function updateProgressBar(current, total, action = "Verarbeite") { 
+            const progressTextEl = document.getElementById('progressText');
+            const progressTotalEl = document.getElementById('progressTotal');
+            const progressBarInnerEl = document.getElementById('progressBarInner');
+            const progressContainer = document.getElementById('progressContainer');
+            
+            progressContainer.querySelector('p').firstChild.textContent = `${action}: `;
+            progressTextEl.textContent = current;
+            progressTotalEl.textContent = total;
+            
+            const percentage = total > 0 ? (current / total) * 100 : 0;
+            progressBarInnerEl.style.width = percentage + '%';
+            progressBarInnerEl.textContent = Math.round(percentage) + '%';
+        }
+
+        function getQrDisplaySize(itemForQrDataString) { 
+            const sizeSetting = document.getElementById('qrSizeSelector').value;
+            if (sizeSetting === 'auto') {
+                const len = itemForQrDataString ? itemForQrDataString.length : 0; 
+                if (len < 500) return 90;
+                if (len < 1500) return 120;
+                return 150;
+            }
+            return parseInt(sizeSetting, 10) || 120; 
+        }
+        
+        function getByteLength(str) {
+            return new TextEncoder().encode(str).length;
+        }
+
+        function uint8ArrayToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function prepareQrData(itemDataForQr, threshold) {
+            const originalJsonString = JSON.stringify(itemDataForQr);
+            const originalJsonBytes = getByteLength(originalJsonString);
+            let qrDataString = originalJsonString;
+            let compressedRawBytes = null;
+            let wasCompressed = false;
+
+            if (originalJsonBytes > threshold) {
+                try {
+                    if (typeof pako === 'undefined') {
+                        console.warn("Pako library not loaded. Cannot compress.");
+                    } else {
+                        const compressedDataUint8Array = pako.deflate(originalJsonString);
+                        compressedRawBytes = compressedDataUint8Array.length;
+                        if (compressedRawBytes < originalJsonBytes * 0.9) { 
+                             qrDataString = COMPRESSION_PREFIX + uint8ArrayToBase64(compressedDataUint8Array);
+                             wasCompressed = true;
+                        } else {
+                            compressedRawBytes = null; 
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error during compression:", e);
+                    compressedRawBytes = null; 
+                }
+            }
+            return { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed };
+        }
+
+
+        function generateSingleQrCode(qrContainerElement, qrDataStringForEncoding) {
+            qrContainerElement.innerHTML = ''; 
+            
+            try {
+                if (typeof QRCode === 'undefined') { 
+                    qrContainerElement.textContent = '[QR Lib fehlt]';
+                    console.warn('QRCode library is not loaded.');
+                    return; 
+                }
+                new QRCode(qrContainerElement, {
+                    text: qrDataStringForEncoding,
+                    width: 512, 
+                    height: 512,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.L 
+                });
+                if (qrContainerElement.children.length > 1) { 
+                    while (qrContainerElement.children.length > 1) qrContainerElement.removeChild(qrContainerElement.lastChild);
+                }
+                if (qrContainerElement.firstChild) { 
+                    qrContainerElement.firstChild.style.width = '100%';
+                    qrContainerElement.firstChild.style.height = '100%';
+                }
+            } catch (e) { 
+                console.error("Error creating QR code:", e);
+                qrContainerElement.textContent = "[QR Fehler]";
+                qrContainerElement.style.fontSize = "0.8em";
+                qrContainerElement.style.color = "red";
+                qrContainerElement.style.textAlign = "center";
+            }
+        }
+
+        async function renderItems(jsonData) {
+            const itemsContainer = document.getElementById('itemsContainer');
+            const progressContainer = document.getElementById('progressContainer');
+            const errorMessageDiv = document.getElementById('errorMessage');
+            itemsContainer.innerHTML = ''; 
+            currentProcessedItems = [];
+            currentOriginalItems = [];
+
+            if (!jsonData || typeof jsonData !== 'object') { 
+                errorMessageDiv.textContent = 'Ungültige JSON-Struktur.';
+                errorMessageDiv.style.display = 'block';
+                progressContainer.style.display = 'none';
+                return; 
+            }
+            const items = jsonData.items;
+            if (!Array.isArray(items)) { 
+                errorMessageDiv.textContent = 'Kein gültiges "items"-Array.';
+                errorMessageDiv.style.display = 'block';
+                progressContainer.style.display = 'none';
+                return; 
+            }
+            if (items.length === 0) { 
+                itemsContainer.textContent = 'Keine Items im JSON gefunden.';
+                progressContainer.style.display = 'none';
+                return; 
+            }
+
+            progressContainer.style.display = 'block';
+            updateProgressBar(0, items.length, "Verarbeite");
+            let processedCount = 0;
+            const compressionThreshold = parseInt(document.getElementById('compressionThresholdSlider').value, 10);
+
+            let globalAutoSize = null;
+            if (document.getElementById('qrSizeSelector').value === 'auto') {
+                let maxQrDataStringLength = 0;
+                items.forEach(originalItem => {
+                    const itemForQr = JSON.parse(JSON.stringify(originalItem));
+                    const loginDataForQr = itemForQr.login || {};
+                    if (loginDataForQr.uris && Array.isArray(loginDataForQr.uris)) {
+                        loginDataForQr.uris = loginDataForQr.uris.map(uriObj => 
+                            (uriObj && uriObj.uri) ? { ...uriObj, uri: shortenUri(uriObj.uri) } : uriObj);
+                    }
+                    const { qrDataString } = prepareQrData(itemForQr, compressionThreshold);
+                    if (qrDataString.length > maxQrDataStringLength) maxQrDataStringLength = qrDataString.length;
+                });
+                if (maxQrDataStringLength < 500) globalAutoSize = 90;
+                else if (maxQrDataStringLength < 1500) globalAutoSize = 120;
+                else globalAutoSize = 150;
+            }
+
+            for (const [index, originalItem] of items.entries()) {
+                if (typeof originalItem !== 'object' || originalItem === null) { 
+                    processedCount++;
+                    updateProgressBar(processedCount, items.length, "Verarbeite");
+                    await new Promise(resolve => setTimeout(resolve, 0)); 
+                    continue; 
+                }
+                
+                currentOriginalItems.push(originalItem); 
+                const itemForQr = JSON.parse(JSON.stringify(originalItem)); 
+                const loginDataForQr = itemForQr.login || {};
+                 if (loginDataForQr.uris && Array.isArray(loginDataForQr.uris)) {
+                    loginDataForQr.uris = loginDataForQr.uris.map(uriObj => 
+                        (uriObj && uriObj.uri) ? { ...uriObj, uri: shortenUri(uriObj.uri) } : uriObj
+                    );
+                }
+                currentProcessedItems.push(itemForQr); 
+
+                const { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed } = prepareQrData(itemForQr, compressionThreshold);
+
+                const itemEntryDiv = document.createElement('div');
+                itemEntryDiv.className = 'item-entry';
+                itemEntryDiv.dataset.itemIndex = index; 
+
+                const textDetailsDiv = document.createElement('div');
+                textDetailsDiv.className = 'item-text-details';
+                
+                const nameLineDiv = document.createElement('div');
+                nameLineDiv.className = 'item-name-line';
+                
+                const loginData = originalItem.login || {};
+                let hasContent = false;
+
+                if (originalItem.name) { 
+                    const nameEl = document.createElement('h4');
+                    nameEl.className = 'item-detail-name';
+                    nameEl.textContent = originalItem.name;
+                    nameLineDiv.appendChild(nameEl); 
+                    hasContent=true; 
+                }
+                const byteInfoSpan = document.createElement('span');
+                byteInfoSpan.className = 'item-byte-info';
+                let byteInfoText = `(JSON: ${originalJsonBytes} B`;
+                if (wasCompressed && compressedRawBytes !== null) {
+                    byteInfoText += `, Kompr.: ${compressedRawBytes} B`;
+                }
+                byteInfoText += ')';
+                byteInfoSpan.textContent = byteInfoText;
+                nameLineDiv.appendChild(byteInfoSpan);
+                textDetailsDiv.appendChild(nameLineDiv);
+
+                if (createTextDetail(textDetailsDiv, 'User', loginData.username)) hasContent = true;
+                if (createTextDetail(textDetailsDiv, 'Pass', loginData.password)) hasContent = true;
+                if (createTextDetail(textDetailsDiv, 'TOTP', loginData.totp)) hasContent = true;
+                if (Array.isArray(loginData.uris) && loginData.uris.length > 0) {
+                    const firstUriObj = loginData.uris[0];
+                    if (firstUriObj && firstUriObj.uri) {
+                        const shortUriForDisplay = shortenUri(firstUriObj.uri); 
+                        if (createTextDetail(textDetailsDiv, 'URI', shortUriForDisplay, {className: 'item-uri'})) hasContent = true;
+                    }
+                }
+                 if (originalItem.notes) { 
+                    const notesContainer = document.createElement('div');
+                    notesContainer.className = 'item-detail-notes';
+                    notesContainer.innerHTML = `<span class="detail-label">Notizen:</span><div class="notes-content-display"></div>`;
+                    notesContainer.querySelector('.notes-content-display').textContent = originalItem.notes;
+                    textDetailsDiv.appendChild(notesContainer);
+                    hasContent = true;
+                }
+
+                itemEntryDiv.appendChild(textDetailsDiv);
+
+                const qrContainer = document.createElement('div');
+                qrContainer.className = 'qr-code-container';
+                itemEntryDiv.appendChild(qrContainer); 
+                
+                const displaySize = globalAutoSize !== null ? globalAutoSize : getQrDisplaySize(qrDataString);
+                qrContainer.style.width = displaySize + 'px';
+                qrContainer.style.height = displaySize + 'px';
+                
+                generateSingleQrCode(qrContainer, qrDataString); 
+                
+                 if (hasContent || originalItem.name) {
+                    itemsContainer.appendChild(itemEntryDiv);
+                    if (index < items.length - 1) {
+                        const separator = document.createElement('hr');
+                        separator.className = 'item-separator';
+                        itemsContainer.appendChild(separator);
+                    }
+                }
+                processedCount++;
+                updateProgressBar(processedCount, items.length, "Verarbeite");
+                await new Promise(resolve => setTimeout(resolve, 0)); 
+            }
+            if (itemsContainer.childElementCount === 0 && items.length > 0) { 
+                itemsContainer.textContent = 'Keine anzeigbaren Textdaten in den Items gefunden.';
+            }
+            if (items.length > 0) {
+                 document.getElementById('progressBarInner').textContent = 'Fertig!';
+            } else {
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        async function regenerateAllQrCodes() {
+            const itemsContainer = document.getElementById('itemsContainer');
+            if (currentProcessedItems.length === 0) { 
+                alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
+                return; 
+            }
+
+            const progressContainer = document.getElementById('progressContainer');
+            progressContainer.style.display = 'block';
+            updateProgressBar(0, currentProcessedItems.length, "Aktualisiere QR");
+            let processedCount = 0;
+            const compressionThreshold = parseInt(document.getElementById('compressionThresholdSlider').value, 10);
+
+            let globalAutoSize = null;
+            if (document.getElementById('qrSizeSelector').value === 'auto') {
+                let maxQrDataStringLength = 0;
+                currentProcessedItems.forEach(itemForQr => { 
+                    const { qrDataString } = prepareQrData(itemForQr, compressionThreshold);
+                    if (qrDataString.length > maxQrDataStringLength) maxQrDataStringLength = qrDataString.length;
+                });
+                if (maxQrDataStringLength < 500) globalAutoSize = 90;
+                else if (maxQrDataStringLength < 1500) globalAutoSize = 120;
+                else globalAutoSize = 150;
+            }
+
+            const itemEntries = itemsContainer.querySelectorAll('.item-entry');
+            for (let i = 0; i < itemEntries.length; i++) {
+                const itemEntryDiv = itemEntries[i];
+                const itemIndex = parseInt(itemEntryDiv.dataset.itemIndex, 10);
+                const itemDataForQr = currentProcessedItems[itemIndex]; 
+                
+                const qrContainer = itemEntryDiv.querySelector('.qr-code-container');
+                const byteInfoSpan = itemEntryDiv.querySelector('.item-byte-info');
+
+                if (qrContainer && itemDataForQr) {
+                    const { qrDataString, originalJsonBytes, compressedRawBytes, wasCompressed } = prepareQrData(itemDataForQr, compressionThreshold);
+                    
+                    const displaySize = globalAutoSize !== null ? globalAutoSize : getQrDisplaySize(qrDataString);
+                    qrContainer.style.width = displaySize + 'px';
+                    qrContainer.style.height = displaySize + 'px';
+                    generateSingleQrCode(qrContainer, qrDataString);
+
+                    if (byteInfoSpan) {
+                        let byteInfoText = `(JSON: ${originalJsonBytes} B`;
+                        if (wasCompressed && compressedRawBytes !== null) {
+                            byteInfoText += `, Kompr.: ${compressedRawBytes} B`;
+                        }
+                        byteInfoText += ')';
+                        byteInfoSpan.textContent = byteInfoText;
+                    }
+                }
+                processedCount++;
+                updateProgressBar(processedCount, currentProcessedItems.length, "Aktualisiere QR");
+                await new Promise(resolve => setTimeout(resolve, 0)); 
+            }
+            if (currentProcessedItems.length > 0) {
+                document.getElementById('progressBarInner').textContent = 'QR Fertig!';
+            }
+        }
+    </script>
+</body>
+</html>
