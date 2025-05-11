@@ -14,6 +14,9 @@
             --error-fg: #d73a49;
             --success: #28a745;
             --success-dark: #218838;
+            --qr-bg: #fff;
+            --print-bg: #fff;
+            --print-fg: #000;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -91,7 +94,10 @@
         }
 
         #itemsContainer { padding: 5px 10px; }
-        .item-entry { display: flex; justify-content: space-between; padding: 10px 0; }
+        .item-entry {
+            display: flex; justify-content: space-between; padding: 10px 0;
+            page-break-inside: avoid;  /* avoid splitting items across pages */
+        }
         .item-text-details { flex: 1; padding-right: 15px; min-width: 0; }
         .item-name-line {
             display: flex; align-items: baseline; margin-bottom: 5px;
@@ -112,12 +118,12 @@
             background: var(--bg); padding: 5px; border-radius: 3px;
             max-height: 100px; overflow-y: auto; white-space: pre-wrap;
         }
-
         .qr-code-container {
             flex-shrink: 0; width: 120px; height: 120px;
             border: 1px solid var(--border); display: flex;
             align-items: center; justify-content: center;
             transition: width 0.2s, height 0.2s;
+            page-break-inside: avoid;  /* keep QR entirely on one page */
         }
         .qr-code-container img, .qr-code-container canvas {
             width: 100% !important; height: 100% !important; object-fit: contain;
@@ -129,70 +135,32 @@
 
         @media print {
             body {
-                background: #fff !important;
-                color: #000 !important;
-                padding: 8mm;
-                font-size: 8pt;
+                background: var(--print-bg) !important;
+                color: var(--print-fg) !important;
+                padding: 8mm; font-size: 8pt;
             }
-            /* hide UI chrome */
-            h1, .controls-container, .options-box, .error-message,
-            button, #progressContainer, noscript, title {
-                display: none !important;
-            }
+            .controls-container, .options-box, .error-message, button,
+            #progressContainer, h1 { display: none !important; }
             #itemsContainer {
-                border: none !important;
-                border-radius: 0 !important;
-                padding: 0 !important;
+                border: none; border-radius: 0; padding: 0;
             }
-            .item-entry {
-                padding: 6px 0 !important;
-                align-items: flex-start !important;
-            }
-            .item-name-line {
-                flex-wrap: wrap !important;
-            }
+            .item-entry { padding: 6px 0; }
             .item-detail-name {
-                font-size: 1.05em !important;
-                color: #000 !important;
-                margin-bottom: 2px !important;
+                color: var(--print-fg) !important; margin-bottom: 2px;
             }
             .item-byte-info {
-                font-size: 0.75em !important;
-                color: #000 !important;
+                font-size: 0.75em; color: var(--print-fg) !important;
             }
-            .item-detail-line {
-                font-size: 0.95em !important;
-                margin-bottom: 2px !important;
-            }
-            .item-detail-line .detail-label {
-                color: #333 !important;
-            }
+            .item-detail-line { margin-bottom: 2px; }
+            .item-detail-line .detail-label,
             .item-detail-line .data-value {
-                color: #000 !important;
-            }
-            .item-detail-notes .detail-label {
-                color: #000 !important;
-                font-size: 0.95em !important;
+                color: var(--print-fg) !important;
             }
             .notes-content-display {
-                background: #f0f0f0 !important;
-                color: #000 !important;
-                font-size: 0.9em !important;
-                max-height: none !important;
-                overflow-y: visible !important;
-                border: 1px solid #ccc !important;
-                padding: 3px !important;
+                background: #f0f0f0; border: 1px solid #ccc;
+                max-height: none; overflow: visible; padding: 3px;
             }
-            .qr-code-container {
-                border: 1px solid #ccc !important;
-            }
-            .qr-code-container img, .qr-code-container canvas {
-                width: 100% !important;
-                height: 100% !important;
-            }
-            .item-separator {
-                background-color: #aaa !important;
-            }
+            .item-separator { background: #aaa !important; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
@@ -200,11 +168,13 @@
 </head>
 <body>
 <h1>JSON Item Kompakt-Liste (Layout Fix)</h1>
+
 <div class="controls-container">
     <textarea id="jsonInput" placeholder="JSON hier einfügen..."></textarea>
     <input type="file" id="fileInput" accept=".json,.txt">
     <button id="processJsonBtn">JSON verarbeiten</button>
 </div>
+
 <div class="options-box">
     <h3>QR-Code Optionen</h3>
     <div class="option-group">
@@ -225,16 +195,19 @@
         <button id="regenerateQrButton">QR-Codes aktualisieren</button>
     </div>
 </div>
+
 <div id="progressContainer" style="display:none">
     <p><span id="progressAction">Verarbeite</span>: <span id="progressText">0</span>/<span id="progressTotal">0</span></p>
     <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
 </div>
+
 <div id="errorMessage" class="error-message"></div>
 <div id="itemsContainer"></div>
 
 <script>
     const COMPRESSION_PREFIX = "z64:";
     let originalItems = [], processedItems = [];
+
     const el = id => document.getElementById(id);
 
     el('compressionThresholdSlider').addEventListener('input', e => {
@@ -268,8 +241,9 @@
     }
 
     function showError(msg) {
-        el('errorMessage').textContent = msg;
-        el('errorMessage').style.display = 'block';
+        const err = el('errorMessage');
+        err.textContent = msg;
+        err.style.display = 'block';
         el('progressContainer').style.display = 'none';
     }
 
@@ -318,12 +292,11 @@
     function genQr(elm, text) {
         elm.innerHTML = '';
         if (!window.QRCode) {
-            elm.textContent = '[QR Lib fehlt]';
-            return;
+            elm.textContent = '[QR Lib fehlt]'; return;
         }
         new QRCode(elm, {
             text, width: 512, height: 512,
-            colorDark: "#000", colorLight: "#fff",
+            colorDark:"#000", colorLight:"#fff",
             correctLevel: QRCode.CorrectLevel.L
         });
         const img = elm.querySelector('img, canvas');
@@ -334,18 +307,16 @@
     }
 
     function shortenUri(uri, max = 50) {
-        let u = (uri || '').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max ? u.slice(0, max - 3) + '...' : u;
+        let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
+        return u.length > max ? u.slice(0, max-3) + '...' : u;
     }
 
     async function renderItems(json) {
         const items = json.items;
         if (!Array.isArray(items)) return showError('Kein gültiges "items"-Array.');
         if (!items.length) return el('itemsContainer').textContent = 'Keine Items im JSON gefunden.';
-
         const threshold = +el('compressionThresholdSlider').value;
         const auto = el('qrSizeSelector').value === 'auto';
-
         let autoSize = null;
         if (auto) {
             let maxLen = 0;
@@ -359,7 +330,6 @@
             });
             autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
         }
-
         for (let i = 0; i < items.length; i++) {
             updateProgress(i, items.length);
             const itm = items[i];
@@ -370,15 +340,12 @@
                 copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
             }
             processedItems.push(copy);
-
             const { data, len, compLen, compressed } = prepareQrData(copy, threshold);
             const entry = document.createElement('div');
             entry.className = 'item-entry';
             entry.dataset.index = i;
-
             const txt = document.createElement('div');
             txt.className = 'item-text-details';
-
             const nameLine = document.createElement('div');
             nameLine.className = 'item-name-line';
             if (itm.name) {
@@ -392,11 +359,10 @@
             info.textContent = `(JSON: ${len} B${compressed ? `, Kompr.: ${compLen} B` : ''})`;
             nameLine.append(info);
             txt.append(nameLine);
-
             const addDetail = (lbl, val, cls) => {
                 if (!val) return;
                 const p = document.createElement('p');
-                p.className = 'item-detail-line' + (cls ? ` ${cls}` : '');
+                p.className = 'item-detail-line' + (cls ? ` ${cls}`:'');
                 p.innerHTML = `<span class="detail-label">${lbl}:</span><span class="data-value">${val}</span>`;
                 txt.append(p);
             };
@@ -414,14 +380,12 @@
                 txt.append(notes);
             }
             entry.append(txt);
-
             const qrC = document.createElement('div');
             qrC.className = 'qr-code-container';
             const size = autoSize ?? +el('qrSizeSelector').value;
             qrC.style.width = qrC.style.height = size + 'px';
             entry.append(qrC);
             genQr(qrC, data);
-
             el('itemsContainer').append(entry);
             if (i < items.length - 1) {
                 const hr = document.createElement('hr');
