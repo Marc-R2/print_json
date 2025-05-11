@@ -5,51 +5,46 @@
     <title>JSON Item Kompakt-Liste (Layout Fix)</title>
     <style>
         :root {
-            --bg: #f6f8fa;
-            --fg: #24292e;
-            --border: #e1e4e8;
-            --accent: #0366d6;
-            --muted: #586069;
-            --error-bg: #fddfdf;
-            --error-fg: #d73a49;
-            --success: #28a745;
-            --success-dark: #218838;
-            --qr-bg: #fff;
-            --print-bg: #fff;
-            --print-fg: #000;
+            --bg: #f6f8fa; --fg: #24292e; --border: #e1e4e8;
+            --accent: #0366d6; --muted: #586069;
+            --error-bg: #fddfdf; --error-fg: #d73a49;
+            --success: #28a745; --success-dark: #218838;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--fg);
-            padding: 15px;
+            font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI",
+            Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg); color: var(--fg); padding: 15px;
         }
-        h1 { text-align: center; margin-bottom: 15px; font-size: 1.4em; color: var(--accent); }
+        h1 { text-align: center; margin-bottom: 15px;
+            font-size: 1.4em; color: var(--accent); }
 
-        .controls-container,
-        .options-box,
-        #progressContainer,
-        #itemsContainer {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            margin-bottom: 15px;
+        .controls-container, .options-box,
+        #progressContainer, #itemsContainer {
+            background: #fff; border: 1px solid var(--border);
+            border-radius: 6px; margin-bottom: 15px;
             padding: 12px;
         }
-        .options-box h3 { font-size: 1.1em; margin-bottom: 10px; color: var(--muted); }
-        .option-group { margin-bottom: 10px; display: flex; align-items: center; }
+        .options-box h3 { font-size: 1.1em;
+            margin-bottom: 10px; color: var(--muted); }
+        .option-group {
+            margin-bottom: 10px; display: flex; align-items: center;
+        }
         .option-group label {
-            width: 140px; color: var(--muted); font-weight: 500;
+            width: 160px; color: var(--muted);
+            font-weight: 500;
         }
         .option-group select,
         .option-group input[type="range"],
-        .option-group button {
+        .option-group button,
+        .option-group input[type="checkbox"] {
             flex: 1; padding: 6px 10px; font-size: 0.9em;
             border: 1px solid #d1d5da; border-radius: 4px;
             margin-right: 10px;
         }
-        .option-group output { width: 40px; text-align: right; font-size: 0.9em; }
+        .option-group output {
+            width: 40px; text-align: right; font-size: 0.9em;
+        }
 
         textarea {
             width: 100%; min-height: 70px;
@@ -57,110 +52,144 @@
             padding: 8px; margin-bottom: 8px;
             font-size: 0.95em;
         }
-        input[type="file"] { display: block; margin-bottom: 8px; font-size: 0.95em; }
+        input[type="file"] {
+            display: block; margin-bottom: 8px;
+            font-size: 0.95em;
+        }
         button {
             cursor: pointer; border-radius: 4px; border: none;
             font-size: 0.95em;
         }
         #processJsonBtn {
-            background: var(--success); color: #fff; padding: 7px 12px;
-            transition: background 0.2s;
+            background: var(--success); color: #fff;
+            padding: 7px 12px; transition: background 0.2s;
         }
-        #processJsonBtn:hover { background: var(--success-dark); }
+        #processJsonBtn:hover {
+            background: var(--success-dark);
+        }
         #regenerateQrButton {
-            background: #007bff; color: #fff; padding: 6px 10px;
-            transition: background 0.2s;
+            background: #007bff; color: #fff;
+            padding: 6px 10px; transition: background 0.2s;
         }
-        #regenerateQrButton:hover { background: #0056b3; }
+        #regenerateQrButton:hover {
+            background: #0056b3;
+        }
 
         .error-message {
             display: none; color: var(--error-fg);
-            background: var(--error-bg); border: 1px solid var(--error-fg);
-            padding: 8px; border-radius: 4px; margin-bottom: 12px;
-            font-size: 0.9em;
+            background: var(--error-bg);
+            border: 1px solid var(--error-fg);
+            padding: 8px; border-radius: 4px;
+            margin-bottom: 12px; font-size: 0.9em;
         }
 
         #progressContainer p {
-            font-size: 0.95em; color: var(--muted); margin-bottom: 5px;
+            font-size: 0.95em; color: var(--muted);
+            margin-bottom: 5px;
         }
         #progressBarOuter {
-            width: 100%; background: #e0e0e0; height: 20px; border-radius: 4px;
-            overflow: hidden;
+            width: 100%; background: #e0e0e0;
+            height: 20px; border-radius: 4px; overflow: hidden;
         }
         #progressBarInner {
-            height: 100%; background: var(--success); text-align: center;
-            line-height: 20px; color: #fff; font-weight: bold; font-size: 0.85em;
-            transition: width 0.2s;
+            height: 100%; background: var(--success);
+            text-align: center; line-height: 20px;
+            color: #fff; font-weight: bold;
+            font-size: 0.85em; transition: width 0.2s;
         }
 
         #itemsContainer { padding: 5px 10px; }
         .item-entry {
-            display: flex; justify-content: space-between; padding: 10px 0;
-            page-break-inside: avoid;  /* avoid splitting items across pages */
+            display: flex; justify-content: space-between;
+            padding: 10px 0; page-break-inside: avoid;
         }
-        .item-text-details { flex: 1; padding-right: 15px; min-width: 0; }
+        .item-text-details {
+            flex: 1; padding-right: 15px; min-width: 0;
+        }
         .item-name-line {
-            display: flex; align-items: baseline; margin-bottom: 5px;
-            flex-wrap: nowrap;
+            display: flex; align-items: baseline;
+            margin-bottom: 5px; flex-wrap: nowrap;
         }
         .item-detail-name {
-            font-size: 1.1em; font-weight: 600; color: var(--accent);
-            margin-right: 8px; flex: 1; min-width: 0; word-break: break-word;
+            font-size: 1.1em; font-weight: 600;
+            color: var(--accent); margin-right: 8px;
+            flex: 1; min-width: 0; word-break: break-word;
         }
         .item-byte-info {
-            font-size: 0.8em; color: #6a737d; white-space: nowrap;
+            font-size: 0.8em; color: #6a737d;
+            white-space: nowrap;
         }
         .item-detail-line {
-            font-size: 0.95em; margin-bottom: 3px; word-wrap: break-word;
+            font-size: 0.95em; margin-bottom: 3px;
+            word-wrap: break-word;
         }
-        .item-detail-line .detail-label { color: var(--muted); font-weight: 500; margin-right: 4px; }
+        .item-detail-line .detail-label {
+            color: var(--muted); font-weight: 500;
+            margin-right: 4px;
+        }
         .item-detail-notes .notes-content-display {
-            background: var(--bg); padding: 5px; border-radius: 3px;
-            max-height: 100px; overflow-y: auto; white-space: pre-wrap;
+            background: var(--bg); padding: 5px;
+            border-radius: 3px; max-height: 100px;
+            overflow-y: auto; white-space: pre-wrap;
+        }
+
+        .qr-wrapper {
+            display: flex; flex-direction: row;
+            gap: 8px; /* QR codes next to each other */
+            align-items: flex-start;
         }
         .qr-code-container {
             flex-shrink: 0; width: 120px; height: 120px;
-            border: 1px solid var(--border); display: flex;
-            align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+            display: flex; align-items: center;
+            justify-content: center;
             transition: width 0.2s, height 0.2s;
-            page-break-inside: avoid;  /* keep QR entirely on one page */
+            page-break-inside: avoid;
         }
-        .qr-code-container img, .qr-code-container canvas {
-            width: 100% !important; height: 100% !important; object-fit: contain;
+        .qr-code-container img,
+        .qr-code-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
         }
         .item-separator {
             height: 1px; background: var(--border); border: none;
         }
-        #itemsContainer > .item-separator:last-child { display: none; }
+        #itemsContainer > .item-separator:last-child {
+            display: none;
+        }
 
         @media print {
             body {
-                background: var(--print-bg) !important;
-                color: var(--print-fg) !important;
+                background: #fff !important;
+                color: #000 !important;
                 padding: 8mm; font-size: 8pt;
             }
-            .controls-container, .options-box, .error-message, button,
-            #progressContainer, h1 { display: none !important; }
+            h1, .controls-container, .options-box,
+            .error-message, button, #progressContainer {
+                display: none !important;
+            }
             #itemsContainer {
                 border: none; border-radius: 0; padding: 0;
             }
             .item-entry { padding: 6px 0; }
             .item-detail-name {
-                color: var(--print-fg) !important; margin-bottom: 2px;
+                font-size: 1.05em; color: #000;
+                margin-bottom: 2px;
             }
             .item-byte-info {
-                font-size: 0.75em; color: var(--print-fg) !important;
+                font-size: 0.75em; color: #000;
             }
             .item-detail-line { margin-bottom: 2px; }
             .item-detail-line .detail-label,
             .item-detail-line .data-value {
-                color: var(--print-fg) !important;
+                color: #000;
             }
             .notes-content-display {
                 background: #f0f0f0; border: 1px solid #ccc;
                 max-height: none; overflow: visible; padding: 3px;
             }
-            .item-separator { background: #aaa !important; }
+            .item-separator { background: #aaa; }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
@@ -188,17 +217,26 @@
     </div>
     <div class="option-group">
         <label for="compressionThresholdSlider">Kompression ab:</label>
-        <input type="range" id="compressionThresholdSlider" min="256" max="2800" step="64" value="2800">
+        <input type="range" id="compressionThresholdSlider"
+               min="256" max="2800" step="64" value="2800">
         <output id="compressionThresholdValue">2800</output> B
     </div>
     <div class="option-group">
         <button id="regenerateQrButton">QR-Codes aktualisieren</button>
     </div>
+    <div class="option-group">
+        <label for="splitQrCheckbox">In zwei QR-Codes aufteilen:</label>
+        <input type="checkbox" id="splitQrCheckbox">
+    </div>
 </div>
 
 <div id="progressContainer" style="display:none">
-    <p><span id="progressAction">Verarbeite</span>: <span id="progressText">0</span>/<span id="progressTotal">0</span></p>
-    <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
+    <p><span id="progressAction">Verarbeite</span>:
+        <span id="progressText">0</span>/<span id="progressTotal">0</span>
+    </p>
+    <div id="progressBarOuter">
+        <div id="progressBarInner">0%</div>
+    </div>
 </div>
 
 <div id="errorMessage" class="error-message"></div>
@@ -222,7 +260,9 @@
         const content = file
             ? await readFile(file)
             : el('jsonInput').value.trim();
-        if (!content) return showError('Bitte JSON-Daten einfügen oder eine Datei auswählen.');
+        if (!content) return showError(
+            'Bitte JSON-Daten einfügen oder eine Datei auswählen.'
+        );
         try {
             const data = JSON.parse(content);
             await renderItems(data);
@@ -233,25 +273,23 @@
 
     function readFile(file) {
         return new Promise((res, rej) => {
-            const reader = new FileReader();
-            reader.onload = () => res(reader.result);
-            reader.onerror = () => rej('Fehler beim Lesen der Datei.');
-            reader.readAsText(file);
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.onerror = () => rej('Fehler beim Lesen der Datei.');
+            r.readAsText(file);
         });
     }
 
     function showError(msg) {
-        const err = el('errorMessage');
-        err.textContent = msg;
-        err.style.display = 'block';
+        el('errorMessage').textContent = msg;
+        el('errorMessage').style.display = 'block';
         el('progressContainer').style.display = 'none';
     }
 
     function resetUI() {
         el('errorMessage').style.display = 'none';
         el('itemsContainer').innerHTML = '';
-        processedItems = [];
-        originalItems = [];
+        originalItems = processedItems = [];
     }
 
     function updateProgress(cur, tot, action = 'Verarbeite') {
@@ -259,7 +297,7 @@
         el('progressAction').textContent = action;
         el('progressText').textContent = cur;
         el('progressTotal').textContent = tot;
-        const pct = tot ? Math.round((cur / tot) * 100) : 0;
+        const pct = tot ? Math.round(cur / tot * 100) : 0;
         const bar = el('progressBarInner');
         bar.style.width = pct + '%';
         bar.textContent = pct + '%';
@@ -268,10 +306,11 @@
     function getByteLength(str) {
         return new TextEncoder().encode(str).length;
     }
-
     function uint8ToBase64(buf) {
         let bin = '';
-        new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
+        new Uint8Array(buf).forEach(b =>
+            bin += String.fromCharCode(b)
+        );
         return btoa(bin);
     }
 
@@ -282,54 +321,86 @@
             const def = pako.deflate(s);
             if (def.length < len * 0.9) {
                 data = COMPRESSION_PREFIX + uint8ToBase64(def);
-                compLen = def.length;
-                compressed = true;
+                compLen = def.length; compressed = true;
             }
         }
         return { data, len, compLen, compressed };
     }
 
+    /**
+     * Generiert einen QR-Code in das Element elm.
+     * Fängt "code length overflow" Exceptions ab und zeigt eine Platzhalter-Nachricht.
+     */
     function genQr(elm, text) {
         elm.innerHTML = '';
         if (!window.QRCode) {
-            elm.textContent = '[QR Lib fehlt]'; return;
+            elm.textContent = '[QR Lib fehlt]';
+            return;
         }
-        new QRCode(elm, {
-            text, width: 512, height: 512,
-            colorDark:"#000", colorLight:"#fff",
-            correctLevel: QRCode.CorrectLevel.L
-        });
-        const img = elm.querySelector('img, canvas');
-        if (img) {
-            img.style.width = '100%';
-            img.style.height = '100%';
+        try {
+            new QRCode(elm, {
+                text,
+                width: 512,
+                height: 512,
+                colorDark: "#000",
+                colorLight: "#fff",
+                correctLevel: QRCode.CorrectLevel.L
+            });
+        } catch (e) {
+            console.warn("QR-Code Generierung fehlgeschlagen:", e);
+            if (e.message && e.message.includes("code length overflow")) {
+                elm.textContent = "[Daten zu groß]";
+            } else {
+                elm.textContent = "[QR Fehler]";
+            }
+            elm.style.fontSize = "0.8em";
+            elm.style.color = "red";
+            elm.style.textAlign = "center";
+            return;
+        }
+        // Sobald das Canvas oder img gerendert ist, passt die Größe an
+        const imgOrCanvas = elm.querySelector("img, canvas");
+        if (imgOrCanvas) {
+            imgOrCanvas.style.width = "100%";
+            imgOrCanvas.style.height = "100%";
         }
     }
 
     function shortenUri(uri, max = 50) {
         let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max ? u.slice(0, max-3) + '...' : u;
+        return u.length > max
+            ? u.slice(0, max-3) + '...'
+            : u;
     }
 
     async function renderItems(json) {
         const items = json.items;
-        if (!Array.isArray(items)) return showError('Kein gültiges "items"-Array.');
-        if (!items.length) return el('itemsContainer').textContent = 'Keine Items im JSON gefunden.';
+        if (!Array.isArray(items))
+            return showError('Kein gültiges "items"-Array.');
+        if (!items.length)
+            return el('itemsContainer').textContent =
+                'Keine Items im JSON gefunden.';
+
         const threshold = +el('compressionThresholdSlider').value;
         const auto = el('qrSizeSelector').value === 'auto';
         let autoSize = null;
         if (auto) {
             let maxLen = 0;
             items.forEach(it => {
-                const copy = JSON.parse(JSON.stringify(it));
-                if (copy.login?.uris) {
-                    copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
+                const c = JSON.parse(JSON.stringify(it));
+                if (c.login?.uris) {
+                    c.login.uris = c.login.uris.map(u =>
+                        ({ ...u, uri: shortenUri(u.uri) })
+                    );
                 }
-                const { data } = prepareQrData(copy, threshold);
+                const { data } = prepareQrData(c, threshold);
                 if (data.length > maxLen) maxLen = data.length;
             });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
+            autoSize = maxLen < 500 ? 90
+                : maxLen < 1500 ? 120 : 150;
         }
+
+        const split = el('splitQrCheckbox').checked;
         for (let i = 0; i < items.length; i++) {
             updateProgress(i, items.length);
             const itm = items[i];
@@ -337,13 +408,17 @@
             originalItems.push(itm);
             const copy = JSON.parse(JSON.stringify(itm));
             if (copy.login?.uris) {
-                copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
+                copy.login.uris = copy.login.uris.map(u =>
+                    ({ ...u, uri: shortenUri(u.uri) })
+                );
             }
             processedItems.push(copy);
-            const { data, len, compLen, compressed } = prepareQrData(copy, threshold);
+
             const entry = document.createElement('div');
             entry.className = 'item-entry';
             entry.dataset.index = i;
+
+            // text/details
             const txt = document.createElement('div');
             txt.className = 'item-text-details';
             const nameLine = document.createElement('div');
@@ -354,19 +429,54 @@
                 h4.textContent = itm.name;
                 nameLine.append(h4);
             }
-            const info = document.createElement('span');
-            info.className = 'item-byte-info';
-            info.textContent = `(JSON: ${len} B${compressed ? `, Kompr.: ${compLen} B` : ''})`;
-            nameLine.append(info);
+
+            const lg = itm.login || {};
+            const imp = { login: {} };
+            if (lg.username) imp.login.username = lg.username;
+            if (lg.password) imp.login.password = lg.password;
+
+            if (!split) {
+                // single QR
+                const { data, len, compLen, compressed } =
+                    prepareQrData(copy, threshold);
+                const info = document.createElement('span');
+                info.className = 'item-byte-info';
+                info.textContent =
+                    `(JSON: ${len} B${compressed?`, Kompr.: ${compLen} B`:''})`;
+                nameLine.append(info);
+
+            } else {
+                // split QR: combine byte-info
+                // less data object
+                const less = { ...itm };
+                if (less.login) {
+                    const L = { ...less.login };
+                    delete L.username; delete L.password;
+                    if (Object.keys(L).length) less.login = L;
+                    else delete less.login;
+                }
+                const { data: d1, len: l1, compLen: c1, compressed: z1 } =
+                    prepareQrData(imp, threshold);
+                const { data: d2, len: l2, compLen: c2, compressed: z2 } =
+                    prepareQrData(less, threshold);
+
+                const info = document.createElement('span');
+                info.className = 'item-byte-info';
+                info.textContent =
+                    `(Imp: ${l1} B${z1?`,K:${c1}B`:''}; Less: ${l2} B${z2?`,K:${c2}B`:''})`;
+                nameLine.append(info);
+            }
             txt.append(nameLine);
+
+            // details lines
             const addDetail = (lbl, val, cls) => {
                 if (!val) return;
                 const p = document.createElement('p');
-                p.className = 'item-detail-line' + (cls ? ` ${cls}`:'');
-                p.innerHTML = `<span class="detail-label">${lbl}:</span><span class="data-value">${val}</span>`;
+                p.className = 'item-detail-line' + (cls?` ${cls}`:'');
+                p.innerHTML = `<span class="detail-label">${lbl}:</span>` +
+                    `<span class="data-value">${val}</span>`;
                 txt.append(p);
             };
-            const lg = itm.login || {};
             addDetail('User', lg.username);
             addDetail('Pass', lg.password);
             addDetail('TOTP', lg.totp);
@@ -376,16 +486,52 @@
             if (itm.notes) {
                 const notes = document.createElement('div');
                 notes.className = 'item-detail-notes';
-                notes.innerHTML = `<span class="detail-label">Notizen:</span><div class="notes-content-display">${itm.notes}</div>`;
+                notes.innerHTML =
+                    `<span class="detail-label">Notizen:</span>` +
+                    `<div class="notes-content-display">${itm.notes}</div>`;
                 txt.append(notes);
             }
             entry.append(txt);
-            const qrC = document.createElement('div');
-            qrC.className = 'qr-code-container';
+
+            // QR codes
             const size = autoSize ?? +el('qrSizeSelector').value;
-            qrC.style.width = qrC.style.height = size + 'px';
-            entry.append(qrC);
-            genQr(qrC, data);
+            if (!split) {
+                const qr = document.createElement('div');
+                qr.className = 'qr-code-container';
+                qr.style.width = qr.style.height = size + 'px';
+                entry.append(qr);
+                genQr(qr, prepareQrData(copy, threshold).data);
+
+            } else {
+                const less = { ...itm };
+                if (less.login) {
+                    const L = { ...less.login };
+                    delete L.username; delete L.password;
+                    if (Object.keys(L).length) less.login = L;
+                    else delete less.login;
+                }
+                const wrapper = document.createElement('div');
+                wrapper.className = 'qr-wrapper';
+
+                // important QR
+                if (imp.login.username || imp.login.password) {
+                    const qr1 = document.createElement('div');
+                    qr1.className = 'qr-code-container';
+                    qr1.style.width = qr1.style.height = size + 'px';
+                    genQr(qr1, prepareQrData(imp, threshold).data);
+                    wrapper.append(qr1);
+                }
+                // less-important QR
+                if (Object.keys(less).length) {
+                    const qr2 = document.createElement('div');
+                    qr2.className = 'qr-code-container';
+                    qr2.style.width = qr2.style.height = size + 'px';
+                    genQr(qr2, prepareQrData(less, threshold).data);
+                    wrapper.append(qr2);
+                }
+                entry.append(wrapper);
+            }
+
             el('itemsContainer').append(entry);
             if (i < items.length - 1) {
                 const hr = document.createElement('hr');
@@ -394,12 +540,16 @@
             }
             await new Promise(r => setTimeout(r, 0));
         }
+
         updateProgress(items.length, items.length);
         el('progressBarInner').textContent = 'Fertig!';
     }
 
     async function regenerateAllQrCodes() {
-        if (!processedItems.length) return alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
+        if (!processedItems.length) {
+            alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
+            return;
+        }
         const threshold = +el('compressionThresholdSlider').value;
         const auto = el('qrSizeSelector').value === 'auto';
         let autoSize = null;
@@ -409,20 +559,69 @@
                 const { data } = prepareQrData(it, threshold);
                 if (data.length > maxLen) maxLen = data.length;
             });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
+            autoSize = maxLen < 500 ? 90
+                : maxLen < 1500 ? 120 : 150;
         }
+        const split = el('splitQrCheckbox').checked;
         const entries = document.querySelectorAll('.item-entry');
         for (let i = 0; i < entries.length; i++) {
             updateProgress(i, entries.length, 'Aktualisiere QR');
             const idx = +entries[i].dataset.index;
-            const it = processedItems[idx];
-            const { data, len, compLen, compressed } = prepareQrData(it, threshold);
-            const qrC = entries[i].querySelector('.qr-code-container');
-            const info = entries[i].querySelector('.item-byte-info');
+            const itm = processedItems[idx];
+            const lg = itm.login || {};
+            const imp = { login: {} };
+            if (lg.username) imp.login.username = lg.username;
+            if (lg.password) imp.login.password = lg.password;
+            const less = { ...itm };
+            if (less.login) {
+                const L = { ...less.login };
+                delete L.username; delete L.password;
+                if (Object.keys(L).length) less.login = L;
+                else delete less.login;
+            }
             const size = autoSize ?? +el('qrSizeSelector').value;
-            qrC.style.width = qrC.style.height = size + 'px';
-            genQr(qrC, data);
-            info.textContent = `(JSON: ${len} B${compressed ? `, Kompr.: ${compLen} B` : ''})`;
+
+            const nameLine = entries[i].querySelector('.item-name-line');
+            nameLine.querySelector('.item-byte-info')?.remove();
+
+            if (!split) {
+                const qr = entries[i].querySelector('.qr-code-container');
+                const { data, len, compLen, compressed } =
+                    prepareQrData(itm, threshold);
+                const info = document.createElement('span');
+                info.className = 'item-byte-info';
+                info.textContent =
+                    `(JSON: ${len} B${compressed?`, Kompr.: ${compLen} B`:''})`;
+                nameLine.append(info);
+                qr.style.width = qr.style.height = size + 'px';
+                genQr(qr, data);
+
+            } else {
+                // combined byte-info
+                const { len: l1, compLen: c1, compressed: z1 } =
+                    prepareQrData(imp, threshold);
+                const { len: l2, compLen: c2, compressed: z2 } =
+                    prepareQrData(less, threshold);
+                const info = document.createElement('span');
+                info.className = 'item-byte-info';
+                info.textContent =
+                    `(Imp: ${l1} B${z1?`,K:${c1}B`:''}; Less: ${l2} B${z2?`,K:${c2}B`:''})`;
+                nameLine.append(info);
+
+                const qrs = entries[i].querySelectorAll('.qr-code-container');
+                let c = 0;
+                if (imp.login.username || imp.login.password) {
+                    const qr1 = qrs[c++];
+                    qr1.style.width = qr1.style.height = size + 'px';
+                    genQr(qr1, prepareQrData(imp, threshold).data);
+                }
+                if (Object.keys(less).length) {
+                    const qr2 = qrs[c++];
+                    qr2.style.width = qr2.style.height = size + 'px';
+                    genQr(qr2, prepareQrData(less, threshold).data);
+                }
+            }
+
             await new Promise(r => setTimeout(r, 0));
         }
         updateProgress(entries.length, entries.length, 'QR Fertig');
