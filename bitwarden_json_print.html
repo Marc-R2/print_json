@@ -22,17 +22,15 @@
         .controls-container, .options-box,
         #progressContainer, #itemsContainer {
             background: #fff; border: 1px solid var(--border);
-            border-radius: 6px; margin-bottom: 15px;
-            padding: 12px;
+            border-radius: 6px; margin-bottom: 15px; padding: 12px;
         }
-        .options-box h3 { font-size: 1.1em;
-            margin-bottom: 10px; color: var(--muted); }
+        .options-box h3 { font-size: 1.1em; margin-bottom: 10px;
+            color: var(--muted); }
         .option-group {
             margin-bottom: 10px; display: flex; align-items: center;
         }
         .option-group label {
-            width: 160px; color: var(--muted);
-            font-weight: 500;
+            width: 160px; color: var(--muted); font-weight: 500;
         }
         .option-group select,
         .option-group input[type="range"],
@@ -45,7 +43,6 @@
         .option-group output {
             width: 40px; text-align: right; font-size: 0.9em;
         }
-
         textarea {
             width: 100%; min-height: 70px;
             border: 1px solid #d1d5da; border-radius: 4px;
@@ -74,7 +71,6 @@
         #regenerateQrButton:hover {
             background: #0056b3;
         }
-
         .error-message {
             display: none; color: var(--error-fg);
             background: var(--error-bg);
@@ -82,7 +78,6 @@
             padding: 8px; border-radius: 4px;
             margin-bottom: 12px; font-size: 0.9em;
         }
-
         #progressContainer p {
             font-size: 0.95em; color: var(--muted);
             margin-bottom: 5px;
@@ -94,10 +89,9 @@
         #progressBarInner {
             height: 100%; background: var(--success);
             text-align: center; line-height: 20px;
-            color: #fff; font-weight: bold;
-            font-size: 0.85em; transition: width 0.2s;
+            color: #fff; font-weight: bold; font-size: 0.85em;
+            transition: width 0.2s;
         }
-
         #itemsContainer { padding: 5px 10px; }
         .item-entry {
             display: flex; justify-content: space-between;
@@ -132,11 +126,9 @@
             border-radius: 3px; max-height: 100px;
             overflow-y: auto; white-space: pre-wrap;
         }
-
         .qr-wrapper {
             display: flex; flex-direction: row;
-            gap: 8px; /* QR codes next to each other */
-            align-items: flex-start;
+            gap: 8px; align-items: flex-start;
         }
         .qr-code-container {
             flex-shrink: 0; width: 120px; height: 120px;
@@ -158,11 +150,9 @@
         #itemsContainer > .item-separator:last-child {
             display: none;
         }
-
         @media print {
             body {
-                background: #fff !important;
-                color: #000 !important;
+                background: #fff !important; color: #000 !important;
                 padding: 8mm; font-size: 8pt;
             }
             h1, .controls-container, .options-box,
@@ -228,17 +218,22 @@
         <label for="splitQrCheckbox">In zwei QR-Codes aufteilen:</label>
         <input type="checkbox" id="splitQrCheckbox">
     </div>
+    <div class="option-group">
+        <label for="forceImpCompress">Immer wichtig komprimieren:</label>
+        <input type="checkbox" id="forceImpCompress">
+    </div>
+    <div class="option-group">
+        <label for="forceLessCompress">Immer weniger wichtig komprimieren:</label>
+        <input type="checkbox" id="forceLessCompress">
+    </div>
 </div>
 
 <div id="progressContainer" style="display:none">
     <p><span id="progressAction">Verarbeite</span>:
         <span id="progressText">0</span>/<span id="progressTotal">0</span>
     </p>
-    <div id="progressBarOuter">
-        <div id="progressBarInner">0%</div>
-    </div>
+    <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
 </div>
-
 <div id="errorMessage" class="error-message"></div>
 <div id="itemsContainer"></div>
 
@@ -248,9 +243,8 @@
 
     const el = id => document.getElementById(id);
 
-    el('compressionThresholdSlider').addEventListener('input', e => {
-        el('compressionThresholdValue').textContent = e.target.value;
-    });
+    el('compressionThresholdSlider')
+        .addEventListener('input', e => el('compressionThresholdValue').textContent = e.target.value);
     el('processJsonBtn').addEventListener('click', processJson);
     el('regenerateQrButton').addEventListener('click', regenerateAllQrCodes);
 
@@ -260,9 +254,7 @@
         const content = file
             ? await readFile(file)
             : el('jsonInput').value.trim();
-        if (!content) return showError(
-            'Bitte JSON-Daten einfügen oder eine Datei auswählen.'
-        );
+        if (!content) return showError('Bitte JSON-Daten einfügen oder eine Datei auswählen.');
         try {
             const data = JSON.parse(content);
             await renderItems(data);
@@ -308,12 +300,11 @@
     }
     function uint8ToBase64(buf) {
         let bin = '';
-        new Uint8Array(buf).forEach(b =>
-            bin += String.fromCharCode(b)
-        );
+        new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
         return btoa(bin);
     }
 
+    // bestehende Logik für auto-size
     function prepareQrData(obj, threshold) {
         const s = JSON.stringify(obj), len = getByteLength(s);
         let data = s, compLen = null, compressed = false;
@@ -327,43 +318,63 @@
         return { data, len, compLen, compressed };
     }
 
-    /**
-     * Generiert einen QR-Code in das Element elm.
-     * Fängt "code length overflow" Exceptions ab und zeigt eine Platzhalter-Nachricht.
-     */
+    // neuer Helfer für Payload mit force-Flag
+    function getQrPayload(obj, threshold, forceCompress) {
+        const s = JSON.stringify(obj), len = getByteLength(s);
+        let data = s, compLen = null, compressed = false;
+        if ((forceCompress || len > threshold) && window.pako) {
+            const def = pako.deflate(s, { level: 9 });
+            if (def.length < len) {
+                data = COMPRESSION_PREFIX + uint8ToBase64(def);
+                compLen = def.length; compressed = true;
+            }
+        }
+        return { data, len, compLen, compressed };
+    }
+
+    // genQr gibt true zurück bei Erfolg, false bei Overflow
     function genQr(elm, text) {
         elm.innerHTML = '';
         if (!window.QRCode) {
             elm.textContent = '[QR Lib fehlt]';
-            return;
+            return false;
         }
         try {
             new QRCode(elm, {
-                text,
-                width: 512,
-                height: 512,
-                colorDark: "#000",
-                colorLight: "#fff",
+                text, width: 512, height: 512,
+                colorDark: "#000", colorLight: "#fff",
                 correctLevel: QRCode.CorrectLevel.M
             });
-        } catch (e) {
-            console.warn("QR-Code Generierung fehlgeschlagen:", e, text);
-            if (e.message && e.message.includes("code length overflow")) {
-                elm.textContent = "[Daten zu groß]";
-            } else {
-                elm.textContent = "[QR Fehler]";
+            // Anpassung nach Rendern
+            const img = elm.querySelector("img, canvas");
+            if (img) {
+                img.style.width = "100%";
+                img.style.height = "100%";
             }
-            elm.style.fontSize = "0.8em";
+            return true;
+        } catch (e) {
+            // nur Overflow neu versuchen
+            if (e.message && e.message.includes("code length overflow")) {
+                return false;
+            }
+            console.warn("QR-Fehler:", e);
+            elm.textContent = "[QR Fehler]";
             elm.style.color = "red";
-            elm.style.textAlign = "center";
-            return;
+            return true; // kein erneuter Versuch
         }
-        // Sobald das Canvas oder img gerendert ist, passt die Größe an
-        const imgOrCanvas = elm.querySelector("img, canvas");
-        if (imgOrCanvas) {
-            imgOrCanvas.style.width = "100%";
-            imgOrCanvas.style.height = "100%";
+    }
+
+    // versucht unkomprimiert, bei overflow retry komprimiert
+    function generateAndRenderQr(elm, obj, threshold, forceCompress) {
+        let payload = getQrPayload(obj, threshold, forceCompress);
+        let ok = genQr(elm, payload.data);
+        if (!ok && !payload.compressed) {
+            // retry mit Kompression
+            payload = getQrPayload(obj, threshold, true);
+            genQr(elm, payload.data);
+            payload.compressed = true;
         }
+        return payload;
     }
 
     function shortenUri(uri, max = 50) {
@@ -378,8 +389,7 @@
         if (!Array.isArray(items))
             return showError('Kein gültiges "items"-Array.');
         if (!items.length)
-            return el('itemsContainer').textContent =
-                'Keine Items im JSON gefunden.';
+            return el('itemsContainer').textContent = 'Keine Items im JSON gefunden.';
 
         const threshold = +el('compressionThresholdSlider').value;
         const auto = el('qrSizeSelector').value === 'auto';
@@ -389,18 +399,18 @@
             items.forEach(it => {
                 const c = JSON.parse(JSON.stringify(it));
                 if (c.login?.uris) {
-                    c.login.uris = c.login.uris.map(u =>
-                        ({ ...u, uri: shortenUri(u.uri) })
-                    );
+                    c.login.uris = c.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
                 }
                 const { data } = prepareQrData(c, threshold);
                 if (data.length > maxLen) maxLen = data.length;
             });
-            autoSize = maxLen < 500 ? 90
-                : maxLen < 1500 ? 120 : 150;
+            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
         }
 
         const split = el('splitQrCheckbox').checked;
+        const forceImp = el('forceImpCompress').checked;
+        const forceLess = el('forceLessCompress').checked;
+
         for (let i = 0; i < items.length; i++) {
             updateProgress(i, items.length);
             const itm = items[i];
@@ -408,9 +418,7 @@
             originalItems.push(itm);
             const copy = JSON.parse(JSON.stringify(itm));
             if (copy.login?.uris) {
-                copy.login.uris = copy.login.uris.map(u =>
-                    ({ ...u, uri: shortenUri(u.uri) })
-                );
+                copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
             }
             processedItems.push(copy);
 
@@ -418,7 +426,7 @@
             entry.className = 'item-entry';
             entry.dataset.index = i;
 
-            // text/details
+            // TEXT DETAILS
             const txt = document.createElement('div');
             txt.className = 'item-text-details';
             const nameLine = document.createElement('div');
@@ -430,45 +438,41 @@
                 nameLine.append(h4);
             }
 
+            // login-splitting
             const lg = itm.login || {};
-            const imp = { login: {} };
-            if (lg.username) imp.login.username = lg.username;
-            if (lg.password) imp.login.password = lg.password;
-
-            if (!split) {
-                // single QR
-                const { data, len, compLen, compressed } =
-                    prepareQrData(copy, threshold);
-                const info = document.createElement('span');
-                info.className = 'item-byte-info';
-                info.textContent =
-                    `(JSON: ${len} B${compressed?`, Kompr.: ${compLen} B`:''})`;
-                nameLine.append(info);
-
-            } else {
-                // split QR: combine byte-info
-                // less data object
-                const less = { ...itm };
-                if (less.login) {
-                    const L = { ...less.login };
-                    delete L.username; delete L.password;
-                    if (Object.keys(L).length) less.login = L;
-                    else delete less.login;
-                }
-                const { data: d1, len: l1, compLen: c1, compressed: z1 } =
-                    prepareQrData(imp, threshold);
-                const { data: d2, len: l2, compLen: c2, compressed: z2 } =
-                    prepareQrData(less, threshold);
-
-                const info = document.createElement('span');
-                info.className = 'item-byte-info';
-                info.textContent =
-                    `(Imp: ${l1} B${z1?`,K:${c1}B`:''}; Less: ${l2} B${z2?`,K:${c2}B`:''})`;
-                nameLine.append(info);
+            const impObj = { login: {} };
+            if (lg.username) impObj.login.username = lg.username;
+            if (lg.password) impObj.login.password = lg.password;
+            const lessObj = { ...itm };
+            if (lessObj.login) {
+                const L = { ...lessObj.login };
+                delete L.username; delete L.password;
+                if (Object.keys(L).length) lessObj.login = L;
+                else delete lessObj.login;
             }
+
+            // BYTE INFO
+            let infoText;
+            if (!split) {
+                const p = generateAndRenderQr; // placeholder
+                const payload = generateAndRenderQr(
+                    document.createElement('div'), copy, threshold, forceImp
+                );
+                infoText = `(JSON: ${payload.len} B${payload.compressed?`, Kompr.: ${payload.compLen} B`:''})`;
+            } else {
+                const p1 = getQrPayload(impObj, threshold, forceImp);
+                const p2 = getQrPayload(lessObj, threshold, forceLess);
+                infoText = `(Imp: ${p1.len} B${p1.compressed?`,K:${p1.compLen}B`:''}; ` +
+                    `Less: ${p2.len} B${p2.compressed?`,K:${p2.compLen}B`:''})`;
+            }
+            const infoSpan = document.createElement('span');
+            infoSpan.className = 'item-byte-info';
+            infoSpan.textContent = infoText;
+            nameLine.append(infoSpan);
+
             txt.append(nameLine);
 
-            // details lines
+            // DETAILS LINES
             const addDetail = (lbl, val, cls) => {
                 if (!val) return;
                 const p = document.createElement('p');
@@ -486,47 +490,37 @@
             if (itm.notes) {
                 const notes = document.createElement('div');
                 notes.className = 'item-detail-notes';
-                notes.innerHTML =
-                    `<span class="detail-label">Notizen:</span>` +
+                notes.innerHTML = `<span class="detail-label">Notizen:</span>` +
                     `<div class="notes-content-display">${itm.notes}</div>`;
                 txt.append(notes);
             }
             entry.append(txt);
 
-            // QR codes
+            // QR CODES
             const size = autoSize ?? +el('qrSizeSelector').value;
             if (!split) {
                 const qr = document.createElement('div');
                 qr.className = 'qr-code-container';
                 qr.style.width = qr.style.height = size + 'px';
                 entry.append(qr);
-                genQr(qr, prepareQrData(copy, threshold).data);
-
+                generateAndRenderQr(qr, copy, threshold, forceImp);
             } else {
-                const less = { ...itm };
-                if (less.login) {
-                    const L = { ...less.login };
-                    delete L.username; delete L.password;
-                    if (Object.keys(L).length) less.login = L;
-                    else delete less.login;
-                }
                 const wrapper = document.createElement('div');
                 wrapper.className = 'qr-wrapper';
-
-                // important QR
-                if (imp.login.username || imp.login.password) {
+                // important
+                if (impObj.login.username || impObj.login.password) {
                     const qr1 = document.createElement('div');
                     qr1.className = 'qr-code-container';
                     qr1.style.width = qr1.style.height = size + 'px';
-                    genQr(qr1, prepareQrData(imp, threshold).data);
+                    generateAndRenderQr(qr1, impObj, threshold, forceImp);
                     wrapper.append(qr1);
                 }
-                // less-important QR
-                if (Object.keys(less).length) {
+                // less-important
+                if (Object.keys(lessObj).length) {
                     const qr2 = document.createElement('div');
                     qr2.className = 'qr-code-container';
                     qr2.style.width = qr2.style.height = size + 'px';
-                    genQr(qr2, prepareQrData(less, threshold).data);
+                    generateAndRenderQr(qr2, lessObj, threshold, forceLess);
                     wrapper.append(qr2);
                 }
                 entry.append(wrapper);
@@ -540,7 +534,6 @@
             }
             await new Promise(r => setTimeout(r, 0));
         }
-
         updateProgress(items.length, items.length);
         el('progressBarInner').textContent = 'Fertig!';
     }
@@ -559,68 +552,56 @@
                 const { data } = prepareQrData(it, threshold);
                 if (data.length > maxLen) maxLen = data.length;
             });
-            autoSize = maxLen < 500 ? 90
-                : maxLen < 1500 ? 120 : 150;
+            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
         }
         const split = el('splitQrCheckbox').checked;
+        const forceImp = el('forceImpCompress').checked;
+        const forceLess = el('forceLessCompress').checked;
+
         const entries = document.querySelectorAll('.item-entry');
         for (let i = 0; i < entries.length; i++) {
             updateProgress(i, entries.length, 'Aktualisiere QR');
             const idx = +entries[i].dataset.index;
             const itm = processedItems[idx];
             const lg = itm.login || {};
-            const imp = { login: {} };
-            if (lg.username) imp.login.username = lg.username;
-            if (lg.password) imp.login.password = lg.password;
-            const less = { ...itm };
-            if (less.login) {
-                const L = { ...less.login };
+            const impObj = { login: {} };
+            if (lg.username) impObj.login.username = lg.username;
+            if (lg.password) impObj.login.password = lg.password;
+            const lessObj = { ...itm };
+            if (lessObj.login) {
+                const L = { ...lessObj.login };
                 delete L.username; delete L.password;
-                if (Object.keys(L).length) less.login = L;
-                else delete less.login;
+                if (Object.keys(L).length) lessObj.login = L;
+                else delete lessObj.login;
             }
             const size = autoSize ?? +el('qrSizeSelector').value;
 
             const nameLine = entries[i].querySelector('.item-name-line');
             nameLine.querySelector('.item-byte-info')?.remove();
 
+            let infoText;
             if (!split) {
-                const qr = entries[i].querySelector('.qr-code-container');
-                const { data, len, compLen, compressed } =
-                    prepareQrData(itm, threshold);
-                const info = document.createElement('span');
-                info.className = 'item-byte-info';
-                info.textContent =
-                    `(JSON: ${len} B${compressed?`, Kompr.: ${compLen} B`:''})`;
-                nameLine.append(info);
-                qr.style.width = qr.style.height = size + 'px';
-                genQr(qr, data);
-
+                const payload = generateAndRenderQr(
+                    entries[i].querySelector('.qr-code-container'),
+                    itm, threshold, forceImp
+                );
+                infoText = `(JSON: ${payload.len} B${payload.compressed?`, Kompr.: ${payload.compLen} B`:''})`;
             } else {
-                // combined byte-info
-                const { len: l1, compLen: c1, compressed: z1 } =
-                    prepareQrData(imp, threshold);
-                const { len: l2, compLen: c2, compressed: z2 } =
-                    prepareQrData(less, threshold);
-                const info = document.createElement('span');
-                info.className = 'item-byte-info';
-                info.textContent =
-                    `(Imp: ${l1} B${z1?`,K:${c1}B`:''}; Less: ${l2} B${z2?`,K:${c2}B`:''})`;
-                nameLine.append(info);
-
-                const qrs = entries[i].querySelectorAll('.qr-code-container');
-                let c = 0;
-                if (imp.login.username || imp.login.password) {
-                    const qr1 = qrs[c++];
-                    qr1.style.width = qr1.style.height = size + 'px';
-                    genQr(qr1, prepareQrData(imp, threshold).data);
-                }
-                if (Object.keys(less).length) {
-                    const qr2 = qrs[c++];
-                    qr2.style.width = qr2.style.height = size + 'px';
-                    genQr(qr2, prepareQrData(less, threshold).data);
-                }
+                const p1 = generateAndRenderQr(
+                    entries[i].querySelectorAll('.qr-code-container')[0],
+                    impObj, threshold, forceImp
+                );
+                const p2 = generateAndRenderQr(
+                    entries[i].querySelectorAll('.qr-code-container')[1],
+                    lessObj, threshold, forceLess
+                );
+                infoText = `(Imp: ${p1.len} B${p1.compressed?`,K:${p1.compLen}B`:''}; ` +
+                    `Less: ${p2.len} B${p2.compressed?`,K:${p2.compLen}B`:''})`;
             }
+            const infoSpan = document.createElement('span');
+            infoSpan.className = 'item-byte-info';
+            infoSpan.textContent = infoText;
+            nameLine.append(infoSpan);
 
             await new Promise(r => setTimeout(r, 0));
         }
