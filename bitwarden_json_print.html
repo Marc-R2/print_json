@@ -20,7 +20,7 @@
             font-size: 1.4em; color: var(--accent); }
 
         .controls-container, .options-box,
-        #progressContainer, #itemsContainer {
+        #progressContainer, #itemsContainer, #rangeInfo {
             background: #fff; border: 1px solid var(--border);
             border-radius: 6px; margin-bottom: 15px; padding: 12px;
         }
@@ -34,6 +34,7 @@
         }
         .option-group select,
         .option-group input[type="range"],
+        .option-group input[type="number"],
         .option-group button,
         .option-group input[type="checkbox"] {
             flex: 1; padding: 6px 10px; font-size: 0.9em;
@@ -71,13 +72,14 @@
         #regenerateQrButton:hover {
             background: #0056b3;
         }
+
         .error-message {
             display: none; color: var(--error-fg);
-            background: var(--error-bg);
-            border: 1px solid var(--error-fg);
+            background: var(--error-bg); border: 1px solid var(--error-fg);
             padding: 8px; border-radius: 4px;
             margin-bottom: 12px; font-size: 0.9em;
         }
+
         #progressContainer p {
             font-size: 0.95em; color: var(--muted);
             margin-bottom: 5px;
@@ -92,9 +94,12 @@
             color: #fff; font-weight: bold; font-size: 0.85em;
             transition: width 0.2s;
         }
+
+        #rangeInfo {
+            font-style: italic; color: var(--muted);
+        }
         #itemsContainer {
             padding: 5px 10px;
-            /* Default columns for print – overridden by JS */
             column-gap: 1cm;
         }
         .item-entry {
@@ -130,6 +135,7 @@
             border-radius: 3px; max-height: 100px;
             overflow-y: auto; white-space: pre-wrap;
         }
+
         .qr-wrapper {
             display: flex; flex-direction: row;
             gap: 8px; align-items: flex-start;
@@ -154,6 +160,7 @@
         #itemsContainer > .item-separator:last-child {
             display: none;
         }
+
         @media print {
             body {
                 background: #fff !important; color: #000 !important;
@@ -163,6 +170,7 @@
             .error-message, button, #progressContainer {
                 display: none !important;
             }
+            #rangeInfo { display: block !important; }
             #itemsContainer {
                 border: none; border-radius: 0; padding: 0;
             }
@@ -217,7 +225,12 @@
         <output id="compressionThresholdValue">2800</output> B
     </div>
     <div class="option-group">
-        <button id="regenerateQrButton">QR-Codes aktualisieren</button>
+        <label for="minSizeInput">Min Größe (Bytes):</label>
+        <input type="number" id="minSizeInput" min="0" value="0">
+    </div>
+    <div class="option-group">
+        <label for="maxSizeInput">Max Größe (Bytes):</label>
+        <input type="number" id="maxSizeInput" min="0" value="10000">
     </div>
     <div class="option-group">
         <label for="splitQrCheckbox">In zwei QR-Codes aufteilen:</label>
@@ -240,6 +253,9 @@
             <option value="4">4</option>
         </select>
     </div>
+    <div class="option-group">
+        <button id="regenerateQrButton">QR-Codes aktualisieren</button>
+    </div>
 </div>
 
 <div id="progressContainer" style="display:none">
@@ -250,18 +266,20 @@
 </div>
 
 <div id="errorMessage" class="error-message"></div>
+<div id="rangeInfo"></div>
 <div id="itemsContainer"></div>
 
 <script>
     const COMPRESSION_PREFIX = "z64:";
-    let originalItems = [], processedItems = [];
+    let processedItems = [];
 
     const el = id => document.getElementById(id);
 
+    // Event listeners
     el('compressionThresholdSlider')
         .addEventListener('input', e => el('compressionThresholdValue').textContent = e.target.value);
-    el('processJsonBtn').addEventListener('click', processJson);
-    el('regenerateQrButton').addEventListener('click', regenerateAllQrCodes);
+    ['processJsonBtn','regenerateQrButton'].forEach(id =>
+        el(id).addEventListener('click', processJson));
     el('printColumnsSelector').addEventListener('change', updateColumns);
 
     async function processJson() {
@@ -295,20 +313,21 @@
     }
 
     function resetUI() {
-        el('errorMessage').style.display = 'none';
+        ['errorMessage','rangeInfo','itemsContainer'].forEach(id =>
+            el(id).style.display = (id==='itemsContainer'?'block':'none'));
         el('itemsContainer').innerHTML = '';
-        originalItems = processedItems = [];
+        processedItems = [];
     }
 
-    function updateProgress(cur, tot, action = 'Verarbeite') {
+    function updateProgress(cur, tot, action='Verarbeite') {
         el('progressContainer').style.display = 'block';
         el('progressAction').textContent = action;
         el('progressText').textContent = cur;
         el('progressTotal').textContent = tot;
-        const pct = tot ? Math.round(cur / tot * 100) : 0;
+        const pct = tot ? Math.round(cur/tot*100) : 0;
         const bar = el('progressBarInner');
-        bar.style.width = pct + '%';
-        bar.textContent = pct + '%';
+        bar.style.width = pct+'%';
+        bar.textContent = pct+'%';
     }
 
     function getByteLength(str) {
@@ -316,321 +335,252 @@
     }
     function uint8ToBase64(buf) {
         let bin = '';
-        new Uint8Array(buf).forEach(b => bin += String.fromCharCode(b));
+        new Uint8Array(buf).forEach(b=>bin+=String.fromCharCode(b));
         return btoa(bin);
     }
 
-    // Basis-Kompression/Threshold-Logik
     function prepareQrData(obj, threshold) {
         const s = JSON.stringify(obj), len = getByteLength(s);
-        let data = s, compLen = null, compressed = false;
-        if (len > threshold && window.pako) {
-            const def = pako.deflate(s, { level: 9 });
-            if (def.length < len) {
-                data = COMPRESSION_PREFIX + uint8ToBase64(def);
-                compLen = def.length; compressed = true;
+        let data=s, compLen=null, compressed=false;
+        if(len>threshold && window.pako){
+            const def=pako.deflate(s,{level:9});
+            if(def.length<len){
+                data=COMPRESSION_PREFIX+uint8ToBase64(def);
+                compLen=def.length; compressed=true;
             }
         }
-        return { data, len, compLen, compressed };
+        return {data,len,compLen,compressed};
     }
-
-    // Komprimiert auch auf Force-Flag
-    function getQrPayload(obj, threshold, forceCompress) {
-        const s = JSON.stringify(obj), len = getByteLength(s);
-        let data = s, compLen = null, compressed = false;
-        if ((forceCompress || len > threshold) && window.pako) {
-            const def = pako.deflate(s, { level: 9 });
-            if (def.length < len) {
-                data = COMPRESSION_PREFIX + uint8ToBase64(def);
-                compLen = def.length; compressed = true;
+    function getQrPayload(obj, threshold, force){
+        const s=JSON.stringify(obj), len=getByteLength(s);
+        let data=s, compLen=null, compressed=false;
+        if((force||len>threshold)&&window.pako){
+            const def=pako.deflate(s,{level:9});
+            if(def.length<len){
+                data=COMPRESSION_PREFIX+uint8ToBase64(def);
+                compLen=def.length; compressed=true;
             }
         }
-        return { data, len, compLen, compressed };
+        return {data,len,compLen,compressed};
     }
 
-    // genQr gibt true wenn erfolgreich, false bei Overflow
     function genQr(elm, text) {
-        elm.innerHTML = '';
-        if (!window.QRCode) {
-            elm.textContent = '[QR Lib fehlt]';
-            return true;
+        elm.innerHTML='';
+        if(!window.QRCode){
+            elm.textContent='[QR Lib fehlt]'; return true;
         }
         try {
-            new QRCode(elm, {
-                text, width: 512, height: 512,
-                colorDark: "#000", colorLight: "#fff",
-                correctLevel: QRCode.CorrectLevel.M
+            new QRCode(elm,{
+                text,width:512,height:512,
+                colorDark:"#000",colorLight:"#fff",
+                correctLevel:QRCode.CorrectLevel.M
             });
-            // Anpassung nach Rendern
-            const img = elm.querySelector("img, canvas");
-            if (img) {
-                img.style.width = "100%";
-                img.style.height = "100%";
-            }
+            const img=elm.querySelector("img,canvas");
+            if(img){ img.style.width="100%"; img.style.height="100%"; }
             return true;
-        } catch (e) {
-            // nur Overflow erneut versuchen
-            if (e.message && e.message.includes("code length overflow")) {
+        } catch(e){
+            if(e.message?.includes("code length overflow")){
                 return false;
             }
-            console.warn("QR-Fehler:", e);
-            elm.textContent = "[QR Fehler]";
-            elm.style.color = "red";
+            console.warn("QR-Fehler:",e);
+            elm.textContent="[QR Fehler]"; elm.style.color="red";
             return true;
         }
     }
-
-    // Erst unkomprimiert, bei Overflow retry komprimiert
-    function generateAndRenderQr(elm, obj, threshold, forceCompress) {
-        let payload = getQrPayload(obj, threshold, forceCompress);
-        let ok = genQr(elm, payload.data);
-        if (!ok && !payload.compressed) {
-            // retry mit Kompression
-            payload = getQrPayload(obj, threshold, true);
-            genQr(elm, payload.data);
-            payload.compressed = true;
+    function generateAndRenderQr(elm,obj,thr,force){
+        let p=getQrPayload(obj,thr,force);
+        let ok=genQr(elm,p.data);
+        if(!ok && !p.compressed){
+            p=getQrPayload(obj,thr,true);
+            genQr(elm,p.data);
+            p.compressed=true;
         }
-        return payload;
+        return p;
     }
 
-    function shortenUri(uri, max = 50) {
-        let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max ? u.slice(0, max-3) + '...' : u;
+    function shortenUri(uri,max=50){
+        let u=(uri||'').replace(/^https?:\/\/(www\.)?/,'');
+        return u.length>max?u.slice(0,max-3)+'...':u;
     }
 
-    function updateColumns() {
-        const c = +el('printColumnsSelector').value;
-        const cont = el('itemsContainer');
-        cont.style.columnCount = c;
-        cont.style.columnGap = '1cm';
+    function updateColumns(){
+        const c=+el('printColumnsSelector').value;
+        el('itemsContainer').style.columnCount=c;
+        el('itemsContainer').style.columnGap='1cm';
     }
 
-    async function renderItems(json) {
-        const items = json.items;
-        if (!Array.isArray(items))
-            return showError('Kein gültiges "items"-Array.');
-        if (!items.length)
-            return el('itemsContainer').textContent = 'Keine Items im JSON gefunden.';
+    async function renderItems(json){
+        const rawItems=json.items;
+        if(!Array.isArray(rawItems)) return showError('Kein gültiges "items"-Array.');
+        if(!rawItems.length){
+            el('itemsContainer').textContent='Keine Items im JSON gefunden.';
+            return;
+        }
+        // filter by raw JSON size
+        const minSize=+el('minSizeInput').value||0;
+        const maxSize=+el('maxSizeInput').value||Infinity;
+        const filtered=rawItems.filter(it=>{
+            const l=getByteLength(JSON.stringify(it));
+            return l>=minSize && l<=maxSize;
+        });
+        // show range info
+        el('rangeInfo').style.display='block';
+        el('rangeInfo').textContent=
+            `Zeige ${filtered.length} von ${rawItems.length} Items mit Roh-Größe `+
+            `zwischen ${minSize} und ${isFinite(maxSize)?maxSize:maxSize} Bytes.`;
 
-        const threshold = +el('compressionThresholdSlider').value;
-        const auto = el('qrSizeSelector').value === 'auto';
-        let autoSize = null;
-        if (auto) {
-            let maxLen = 0;
-            items.forEach(it => {
-                const cpy = JSON.parse(JSON.stringify(it));
-                if (cpy.login?.uris) {
-                    cpy.login.uris = cpy.login.uris.map(u=>({ ...u, uri: shortenUri(u.uri) }));
+        // auto-size QR
+        const threshold=+el('compressionThresholdSlider').value;
+        const auto=el('qrSizeSelector').value==='auto';
+        let autoSize=null;
+        if(auto){
+            let mx=0;
+            filtered.forEach(it=>{
+                const cpy=JSON.parse(JSON.stringify(it));
+                if(cpy.login?.uris){
+                    cpy.login.uris=cpy.login.uris.map(u=>({...u,uri:shortenUri(u.uri)}));
                 }
-                const { data } = prepareQrData(cpy, threshold);
-                if (data.length > maxLen) maxLen = data.length;
+                const {data}=prepareQrData(cpy,threshold);
+                if(data.length>mx) mx=data.length;
             });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
+            autoSize=mx<500?90:mx<1500?120:150;
         }
 
-        const split = el('splitQrCheckbox').checked;
-        const forceImp = el('forceImpCompress').checked;
-        const forceLess = el('forceLessCompress').checked;
+        const split=el('splitQrCheckbox').checked;
+        const forceImp=el('forceImpCompress').checked;
+        const forceLess=el('forceLessCompress').checked;
 
-        for (let i = 0; i < items.length; i++) {
-            updateProgress(i, items.length);
-            const itm = items[i];
-            if (!itm || typeof itm !== 'object') continue;
-            originalItems.push(itm);
-            const copy = JSON.parse(JSON.stringify(itm));
-            if (copy.login?.uris) {
-                copy.login.uris = copy.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
+        for(let i=0;i<filtered.length;i++){
+            updateProgress(i,filtered.length);
+            const itm=filtered[i];
+            const rawLen=getByteLength(JSON.stringify(itm));
+            // deep-copy & uri shorten
+            const copy=JSON.parse(JSON.stringify(itm));
+            if(copy.login?.uris){
+                copy.login.uris=copy.login.uris.map(u=>({...u,uri:shortenUri(u.uri)}));
             }
             processedItems.push(copy);
 
-            const entry = document.createElement('div');
-            entry.className = 'item-entry';
-            entry.dataset.index = i;
+            const entry=document.createElement('div');
+            entry.className='item-entry'; entry.dataset.index=i;
 
-            // TEXT DETAILS
-            const txt = document.createElement('div');
-            txt.className = 'item-text-details';
-            const nameLine = document.createElement('div');
-            nameLine.className = 'item-name-line';
-            if (itm.name) {
-                const h4 = document.createElement('h4');
-                h4.className = 'item-detail-name';
-                h4.textContent = itm.name;
+            // text details
+            const txt=document.createElement('div');
+            txt.className='item-text-details';
+            const nameLine=document.createElement('div');
+            nameLine.className='item-name-line';
+            if(itm.name){
+                const h4=document.createElement('h4');
+                h4.className='item-detail-name';
+                h4.textContent=itm.name;
                 nameLine.append(h4);
             }
-
-            // login split
-            const lg = itm.login || {};
-            const impObj = { login: {} };
-            if (lg.username) impObj.login.username = lg.username;
-            if (lg.password) impObj.login.password = lg.password;
-            const lessObj = { ...itm };
-            if (lessObj.login) {
-                const L = { ...lessObj.login };
+            // prepare login split
+            const lg=itm.login||{};
+            const impObj={login:{}};
+            if(lg.username) impObj.login.username=lg.username;
+            if(lg.password) impObj.login.password=lg.password;
+            const lessObj={...itm};
+            if(lessObj.login){
+                const L={...lessObj.login};
                 delete L.username; delete L.password;
-                if (Object.keys(L).length) lessObj.login = L;
+                if(Object.keys(L).length) lessObj.login=L;
                 else delete lessObj.login;
             }
-
-            // BYTE INFO
+            // byte info text
             let infoText;
-            if (!split) {
-                const pld = generateAndRenderQr(
-                    document.createElement('div'),
-                    copy, threshold, forceImp
-                );
-                infoText = `(JSON: ${pld.len} B${pld.compressed?`, Kompr.: ${pld.compLen} B`:''})`;
+            if(!split){
+                infoText=`(Raw: ${rawLen} B)`;
             } else {
-                const p1 = getQrPayload(impObj, threshold, forceImp);
-                const p2 = getQrPayload(lessObj, threshold, forceLess);
-                infoText = `(Imp: ${p1.len} B${p1.compressed?`,K:${p1.compLen}B`:''}; ` +
+                const p1=getQrPayload(impObj,threshold,forceImp);
+                const p2=getQrPayload(lessObj,threshold,forceLess);
+                infoText=`(Imp: ${p1.len} B${p1.compressed?`,K:${p1.compLen}B`:''}; `+
                     `Less: ${p2.len} B${p2.compressed?`,K:${p2.compLen}B`:''})`;
             }
-            const infoSpan = document.createElement('span');
-            infoSpan.className = 'item-byte-info';
-            infoSpan.textContent = infoText;
+            const infoSpan=document.createElement('span');
+            infoSpan.className='item-byte-info';
+            infoSpan.textContent=infoText;
             nameLine.append(infoSpan);
             txt.append(nameLine);
 
-            // DETAILS LINES
-            const addDetail = (lbl, val, cls) => {
-                if (!val) return;
-                const p = document.createElement('p');
-                p.className = 'item-detail-line' + (cls?` ${cls}`:'');
-                p.innerHTML = `<span class="detail-label">${lbl}:</span>` +
+            // detail lines
+            const addDetail=(lbl,val,cls)=>{
+                if(!val) return;
+                const p=document.createElement('p');
+                p.className='item-detail-line'+(cls?` ${cls}`:'');
+                p.innerHTML=`<span class="detail-label">${lbl}:</span>`+
                     `<span class="data-value">${val}</span>`;
                 txt.append(p);
             };
-            addDetail('User', lg.username);
-            addDetail('Pass', lg.password);
-            addDetail('TOTP', lg.totp);
-            if (Array.isArray(lg.uris) && lg.uris[0]?.uri) {
-                addDetail('URI', shortenUri(lg.uris[0].uri), 'item-uri');
+            addDetail('User',lg.username);
+            addDetail('Pass',lg.password);
+            addDetail('TOTP',lg.totp);
+            if(Array.isArray(lg.uris)&&lg.uris[0]?.uri){
+                addDetail('URI',shortenUri(lg.uris[0].uri),'item-uri');
             }
-            if (itm.notes) {
-                const notes = document.createElement('div');
-                notes.className = 'item-detail-notes';
-                notes.innerHTML = `<span class="detail-label">Notizen:</span>` +
+            if(itm.notes){
+                const notes=document.createElement('div');
+                notes.className='item-detail-notes';
+                notes.innerHTML=`<span class="detail-label">Notizen:</span>`+
                     `<div class="notes-content-display">${itm.notes}</div>`;
                 txt.append(notes);
             }
             entry.append(txt);
 
-            // QR CODES
-            const size = autoSize ?? +el('qrSizeSelector').value;
-            if (!split) {
-                const qr = document.createElement('div');
-                qr.className = 'qr-code-container';
+            // QR codes
+            const size=autoSize??+el('qrSizeSelector').value;
+            if(!split){
+                const qr=document.createElement('div');
+                qr.className='qr-code-container';
                 qr.style.width=qr.style.height=`${size}px`;
                 entry.append(qr);
-                generateAndRenderQr(qr, copy, threshold, forceImp);
+                generateAndRenderQr(qr,copy,threshold,forceImp);
             } else {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'qr-wrapper';
-                // important
-                if (impObj.login.username || impObj.login.password) {
-                    const qr1 = document.createElement('div');
-                    qr1.className = 'qr-code-container';
+                const wrapper=document.createElement('div');
+                wrapper.className='qr-wrapper';
+                if(impObj.login.username||impObj.login.password){
+                    const qr1=document.createElement('div');
+                    qr1.className='qr-code-container';
                     qr1.style.width=qr1.style.height=`${size}px`;
-                    generateAndRenderQr(qr1, impObj, threshold, forceImp);
+                    generateAndRenderQr(qr1,impObj,threshold,forceImp);
                     wrapper.append(qr1);
                 }
-                // less-important
-                if (Object.keys(lessObj).length) {
-                    const qr2 = document.createElement('div');
-                    qr2.className = 'qr-code-container';
-                    qr2.style.width = qr2.style.height=`${size}px`;
-                    generateAndRenderQr(qr2, lessObj, threshold, forceLess);
+                if(Object.keys(lessObj).length){
+                    const qr2=document.createElement('div');
+                    qr2.className='qr-code-container';
+                    qr2.style.width=qr2.style.height=`${size}px`;
+                    generateAndRenderQr(qr2,lessObj,threshold,forceLess);
                     wrapper.append(qr2);
                 }
                 entry.append(wrapper);
             }
 
             el('itemsContainer').append(entry);
-            if (i < items.length - 1) {
-                const hr = document.createElement('hr');
-                hr.className = 'item-separator';
+            if(i<filtered.length-1){
+                const hr=document.createElement('hr');
+                hr.className='item-separator';
                 el('itemsContainer').append(hr);
             }
-            await new Promise(r => setTimeout(r, 0));
+            await new Promise(r=>setTimeout(r,0));
         }
 
-        // nach dem Rendern Spalten setzen
         updateColumns();
-        updateProgress(items.length, items.length);
-        el('progressBarInner').textContent = 'Fertig!';
+        updateProgress(filtered.length,filtered.length);
+        el('progressBarInner').textContent='Fertig!';
     }
 
     async function regenerateAllQrCodes() {
-        if (!processedItems.length) {
-            alert("Keine Daten zum Aktualisieren der QR-Codes vorhanden.");
-            return;
+        // simply re-render filtering & QR with current settings
+        const content = el('jsonInput').value.trim();
+        if(!content) return;
+        try {
+            const data = JSON.parse(content);
+            el('itemsContainer').innerHTML = '';
+            processedItems = [];
+            await renderItems(data);
+        } catch {
+            // ignore
         }
-        const threshold = +el('compressionThresholdSlider').value;
-        const auto = el('qrSizeSelector').value === 'auto';
-        let autoSize = null;
-        if (auto) {
-            let maxLen = 0;
-            processedItems.forEach(it => {
-                const { data } = prepareQrData(it, threshold);
-                if (data.length > maxLen) maxLen = data.length;
-            });
-            autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
-        }
-        const split = el('splitQrCheckbox').checked;
-        const forceImp = el('forceImpCompress').checked;
-        const forceLess = el('forceLessCompress').checked;
-
-        const entries = document.querySelectorAll('.item-entry');
-        for (let i = 0; i < entries.length; i++) {
-            updateProgress(i, entries.length, 'Aktualisiere QR');
-            const idx = +entries[i].dataset.index;
-            const itm = processedItems[idx];
-            const lg = itm.login || {};
-            const impObj = { login: {} };
-            if (lg.username) impObj.login.username = lg.username;
-            if (lg.password) impObj.login.password = lg.password;
-            const lessObj = { ...itm };
-            if (lessObj.login) {
-                const L = { ...lessObj.login };
-                delete L.username; delete L.password;
-                if (Object.keys(L).length) lessObj.login = L;
-                else delete lessObj.login;
-            }
-            const size = autoSize ?? +el('qrSizeSelector').value;
-
-            const nameLine = entries[i].querySelector('.item-name-line');
-            nameLine.querySelector('.item-byte-info')?.remove();
-            let infoText;
-            if (!split) {
-                const pld=generateAndRenderQr(
-                    entries[i].querySelector('.qr-code-container'),
-                    itm, threshold, forceImp
-                );
-                infoText=`(JSON: ${pld.len} B${pld.compressed?`, Kompr.: ${pld.compLen} B`:''})`;
-            } else {
-                const p1 = generateAndRenderQr(
-                    entries[i].querySelectorAll('.qr-code-container')[0],
-                    impObj, threshold, forceImp
-                );
-                const p2 = generateAndRenderQr(
-                    entries[i].querySelectorAll('.qr-code-container')[1],
-                    lessObj, threshold, forceLess
-                );
-                infoText = `(Imp: ${p1.len} B${p1.compressed?`,K:${p1.compLen}B`:''}; ` +
-                    `Less: ${p2.len} B${p2.compressed?`,K:${p2.compLen}B`:''})`;
-            }
-            const infoSpan = document.createElement('span');
-            infoSpan.className = 'item-byte-info';
-            infoSpan.textContent = infoText;
-            nameLine.append(infoSpan);
-
-            await new Promise(r => setTimeout(r, 0));
-        }
-        // Spalten beibehalten
-        updateColumns();
-        updateProgress(entries.length, entries.length, 'QR Fertig');
-        el('progressBarInner').textContent = 'QR Fertig!';
     }
 </script>
 </body>
