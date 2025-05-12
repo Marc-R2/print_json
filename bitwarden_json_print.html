@@ -318,8 +318,8 @@
         const s = JSON.stringify(obj), len = getByteLength(s);
         let data = s, compLen = null, compressed = false;
         if (len > threshold && window.pako) {
-            const def = pako.deflate(s);
-            if (def.length < len * 0.9) {
+            const def = pako.deflate(s, { level: 9 });
+            if (def.length < len) {
                 data = COMPRESSION_PREFIX + uint8ToBase64(def);
                 compLen = def.length; compressed = true;
             }
@@ -344,10 +344,10 @@
                 height: 512,
                 colorDark: "#000",
                 colorLight: "#fff",
-                correctLevel: QRCode.CorrectLevel.L
+                correctLevel: QRCode.CorrectLevel.M
             });
         } catch (e) {
-            console.warn("QR-Code Generierung fehlgeschlagen:", e);
+            console.warn("QR-Code Generierung fehlgeschlagen:", e, text);
             if (e.message && e.message.includes("code length overflow")) {
                 elm.textContent = "[Daten zu groß]";
             } else {
