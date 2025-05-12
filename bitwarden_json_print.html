@@ -92,7 +92,11 @@
             color: #fff; font-weight: bold; font-size: 0.85em;
             transition: width 0.2s;
         }
-        #itemsContainer { padding: 5px 10px; }
+        #itemsContainer {
+            padding: 5px 10px;
+            /* Default columns for print – overridden by JS */
+            column-gap: 1cm;
+        }
         .item-entry {
             display: flex; justify-content: space-between;
             padding: 10px 0; page-break-inside: avoid;
@@ -180,6 +184,7 @@
                 max-height: none; overflow: visible; padding: 3px;
             }
             .item-separator { background: #aaa; }
+            /* columns applied via inline style */
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"></script>
@@ -226,6 +231,15 @@
         <label for="forceLessCompress">Immer weniger wichtig komprimieren:</label>
         <input type="checkbox" id="forceLessCompress">
     </div>
+    <div class="option-group">
+        <label for="printColumnsSelector">Spalten (Druck):</label>
+        <select id="printColumnsSelector">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+    </div>
 </div>
 
 <div id="progressContainer" style="display:none">
@@ -234,6 +248,7 @@
     </p>
     <div id="progressBarOuter"><div id="progressBarInner">0%</div></div>
 </div>
+
 <div id="errorMessage" class="error-message"></div>
 <div id="itemsContainer"></div>
 
@@ -247,6 +262,7 @@
         .addEventListener('input', e => el('compressionThresholdValue').textContent = e.target.value);
     el('processJsonBtn').addEventListener('click', processJson);
     el('regenerateQrButton').addEventListener('click', regenerateAllQrCodes);
+    el('printColumnsSelector').addEventListener('change', updateColumns);
 
     async function processJson() {
         resetUI();
@@ -304,7 +320,7 @@
         return btoa(bin);
     }
 
-    // bestehende Logik für auto-size
+    // Basis-Kompression/Threshold-Logik
     function prepareQrData(obj, threshold) {
         const s = JSON.stringify(obj), len = getByteLength(s);
         let data = s, compLen = null, compressed = false;
@@ -318,7 +334,7 @@
         return { data, len, compLen, compressed };
     }
 
-    // neuer Helfer für Payload mit force-Flag
+    // Komprimiert auch auf Force-Flag
     function getQrPayload(obj, threshold, forceCompress) {
         const s = JSON.stringify(obj), len = getByteLength(s);
         let data = s, compLen = null, compressed = false;
@@ -332,12 +348,12 @@
         return { data, len, compLen, compressed };
     }
 
-    // genQr gibt true zurück bei Erfolg, false bei Overflow
+    // genQr gibt true wenn erfolgreich, false bei Overflow
     function genQr(elm, text) {
         elm.innerHTML = '';
         if (!window.QRCode) {
             elm.textContent = '[QR Lib fehlt]';
-            return false;
+            return true;
         }
         try {
             new QRCode(elm, {
@@ -353,18 +369,18 @@
             }
             return true;
         } catch (e) {
-            // nur Overflow neu versuchen
+            // nur Overflow erneut versuchen
             if (e.message && e.message.includes("code length overflow")) {
                 return false;
             }
             console.warn("QR-Fehler:", e);
             elm.textContent = "[QR Fehler]";
             elm.style.color = "red";
-            return true; // kein erneuter Versuch
+            return true;
         }
     }
 
-    // versucht unkomprimiert, bei overflow retry komprimiert
+    // Erst unkomprimiert, bei Overflow retry komprimiert
     function generateAndRenderQr(elm, obj, threshold, forceCompress) {
         let payload = getQrPayload(obj, threshold, forceCompress);
         let ok = genQr(elm, payload.data);
@@ -379,9 +395,14 @@
 
     function shortenUri(uri, max = 50) {
         let u = (uri||'').replace(/^https?:\/\/(www\.)?/, '');
-        return u.length > max
-            ? u.slice(0, max-3) + '...'
-            : u;
+        return u.length > max ? u.slice(0, max-3) + '...' : u;
+    }
+
+    function updateColumns() {
+        const c = +el('printColumnsSelector').value;
+        const cont = el('itemsContainer');
+        cont.style.columnCount = c;
+        cont.style.columnGap = '1cm';
     }
 
     async function renderItems(json) {
@@ -397,11 +418,11 @@
         if (auto) {
             let maxLen = 0;
             items.forEach(it => {
-                const c = JSON.parse(JSON.stringify(it));
-                if (c.login?.uris) {
-                    c.login.uris = c.login.uris.map(u => ({ ...u, uri: shortenUri(u.uri) }));
+                const cpy = JSON.parse(JSON.stringify(it));
+                if (cpy.login?.uris) {
+                    cpy.login.uris = cpy.login.uris.map(u=>({ ...u, uri: shortenUri(u.uri) }));
                 }
-                const { data } = prepareQrData(c, threshold);
+                const { data } = prepareQrData(cpy, threshold);
                 if (data.length > maxLen) maxLen = data.length;
             });
             autoSize = maxLen < 500 ? 90 : maxLen < 1500 ? 120 : 150;
@@ -438,7 +459,7 @@
                 nameLine.append(h4);
             }
 
-            // login-splitting
+            // login split
             const lg = itm.login || {};
             const impObj = { login: {} };
             if (lg.username) impObj.login.username = lg.username;
@@ -454,11 +475,11 @@
             // BYTE INFO
             let infoText;
             if (!split) {
-                const p = generateAndRenderQr; // placeholder
-                const payload = generateAndRenderQr(
-                    document.createElement('div'), copy, threshold, forceImp
+                const pld = generateAndRenderQr(
+                    document.createElement('div'),
+                    copy, threshold, forceImp
                 );
-                infoText = `(JSON: ${payload.len} B${payload.compressed?`, Kompr.: ${payload.compLen} B`:''})`;
+                infoText = `(JSON: ${pld.len} B${pld.compressed?`, Kompr.: ${pld.compLen} B`:''})`;
             } else {
                 const p1 = getQrPayload(impObj, threshold, forceImp);
                 const p2 = getQrPayload(lessObj, threshold, forceLess);
@@ -469,7 +490,6 @@
             infoSpan.className = 'item-byte-info';
             infoSpan.textContent = infoText;
             nameLine.append(infoSpan);
-
             txt.append(nameLine);
 
             // DETAILS LINES
@@ -501,7 +521,7 @@
             if (!split) {
                 const qr = document.createElement('div');
                 qr.className = 'qr-code-container';
-                qr.style.width = qr.style.height = size + 'px';
+                qr.style.width=qr.style.height=`${size}px`;
                 entry.append(qr);
                 generateAndRenderQr(qr, copy, threshold, forceImp);
             } else {
@@ -511,7 +531,7 @@
                 if (impObj.login.username || impObj.login.password) {
                     const qr1 = document.createElement('div');
                     qr1.className = 'qr-code-container';
-                    qr1.style.width = qr1.style.height = size + 'px';
+                    qr1.style.width=qr1.style.height=`${size}px`;
                     generateAndRenderQr(qr1, impObj, threshold, forceImp);
                     wrapper.append(qr1);
                 }
@@ -519,7 +539,7 @@
                 if (Object.keys(lessObj).length) {
                     const qr2 = document.createElement('div');
                     qr2.className = 'qr-code-container';
-                    qr2.style.width = qr2.style.height = size + 'px';
+                    qr2.style.width = qr2.style.height=`${size}px`;
                     generateAndRenderQr(qr2, lessObj, threshold, forceLess);
                     wrapper.append(qr2);
                 }
@@ -534,6 +554,9 @@
             }
             await new Promise(r => setTimeout(r, 0));
         }
+
+        // nach dem Rendern Spalten setzen
+        updateColumns();
         updateProgress(items.length, items.length);
         el('progressBarInner').textContent = 'Fertig!';
     }
@@ -578,14 +601,13 @@
 
             const nameLine = entries[i].querySelector('.item-name-line');
             nameLine.querySelector('.item-byte-info')?.remove();
-
             let infoText;
             if (!split) {
-                const payload = generateAndRenderQr(
+                const pld=generateAndRenderQr(
                     entries[i].querySelector('.qr-code-container'),
                     itm, threshold, forceImp
                 );
-                infoText = `(JSON: ${payload.len} B${payload.compressed?`, Kompr.: ${payload.compLen} B`:''})`;
+                infoText=`(JSON: ${pld.len} B${pld.compressed?`, Kompr.: ${pld.compLen} B`:''})`;
             } else {
                 const p1 = generateAndRenderQr(
                     entries[i].querySelectorAll('.qr-code-container')[0],
@@ -605,6 +627,8 @@
 
             await new Promise(r => setTimeout(r, 0));
         }
+        // Spalten beibehalten
+        updateColumns();
         updateProgress(entries.length, entries.length, 'QR Fertig');
         el('progressBarInner').textContent = 'QR Fertig!';
     }
